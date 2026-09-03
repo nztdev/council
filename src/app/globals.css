@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --color-stone: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-ink: #14151a;
+  --color-ink-soft: #6b6f76;
+  --color-border: #e6e6e2;
+  --color-indigo: #5b5bf0;
+  --color-indigo-soft: #ecebff;
+  --color-brass: #f5a524;
+  --color-brass-soft: #fff4e0;
+  --color-rose: #f0475b;
+  --color-rose-soft: #fde8ea;
+
+  /*
+   * System-stack fallbacks so the build never depends on fetching
+   * Google Fonts. Display text leans on weight + tight tracking rather
+   * than a display serif for a more confident, product-modern feel.
+   * Swap in real font files under public/fonts/ later if desired -
+   * these three variable names are the only thing that needs to stay.
+   */
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter,
+    Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+    sans-serif;
+  --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+@theme inline {
+  --color-stone: var(--color-stone);
+  --color-surface: var(--color-surface);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-border: var(--color-border);
+  --color-indigo: var(--color-indigo);
+  --color-indigo-soft: var(--color-indigo-soft);
+  --color-brass: var(--color-brass);
+  --color-brass-soft: var(--color-brass-soft);
+  --color-rose: var(--color-rose);
+  --color-rose-soft: var(--color-rose-soft);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  background: var(--color-stone);
+}
+
+body {
+  background: var(--color-stone);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--color-indigo-soft);
+  color: var(--color-indigo);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-indigo);
+  outline-offset: 2px;
+}
+
+/* Signature primary action style: a vivid indigo-to-violet gradient,
+   used for the one clear call-to-action per screen. */
+.btn-primary {
+  background: linear-gradient(135deg, #5b5bf0, #8b5cf6);
+  color: #ffffff;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
