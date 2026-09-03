@@ -1,6 +1,6 @@
 # Council
 
-Personal advisory councils: create a trusted "council" of people, post a
+Personal advisory councils: create a trusted "council" of people, then post a
 question, get quick judgment back. This build has a real Supabase backend
 and real accounts (email/password) — no demo users.
 
