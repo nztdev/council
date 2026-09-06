@@ -3,14 +3,14 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { BottomNav } from "@/components/bottom-nav";
 import { RegisterServiceWorker } from "@/components/register-sw";
+import { PreviewBanner } from "@/components/preview-banner";
+import { basePath } from "@/lib/base-path";
 
 // Fonts are loaded via @font-face in globals.css (self-hosted-friendly
 // system stacks) rather than next/font/google, so the build doesn't
 // depend on reaching Google Fonts at build time. Swap in real font
 // files under public/fonts/ and update the @font-face blocks whenever
 // you're ready — the --font-* variable names stay the same.
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata: Metadata = {
   title: "Council",
@@ -35,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-stone text-ink">
         <AuthProvider>
           <RegisterServiceWorker />
+          <PreviewBanner />
           <div className="flex-1 flex flex-col pb-20">{children}</div>
           <BottomNav />
         </AuthProvider>
