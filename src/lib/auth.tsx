@@ -10,12 +10,15 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { hueFromId } from "@/lib/hue";
+import { isPreviewMode, exitPreviewMode } from "@/lib/preview";
+import { PREVIEW_USER_ID } from "@/lib/repositories/mock";
 import type { User } from "@/types";
 
 interface AuthState {
   session: Session | null;
   profile: User | null;
   loading: boolean;
+  isPreview: boolean;
   signUp: (
     email: string,
     password: string,
@@ -25,12 +28,26 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
+// A session object that only ever needs to look truthy to the rest of
+// the app (RequireAuth, BottomNav) - preview mode never talks to
+// Supabase, so this doesn't need to satisfy the real Session shape
+// beyond what those two call sites read.
+const PREVIEW_SESSION = { user: { id: PREVIEW_USER_ID } } as unknown as Session;
+
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // Starts false on every render, including the client's very first one,
+  // so it matches the server-rendered HTML exactly. Only flips inside
+  // the effect below (after mount) - reading localStorage directly during
+  // render, instead of in an effect, is what was causing a hydration
+  // mismatch: the server has no localStorage at all, so it always
+  // rendered "false", while the client's first render could see "true"
+  // immediately if the flag was already set, before hydration finished.
+  const [isPreview, setIsPreview] = useState(false);
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -44,6 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    if (isPreviewMode()) {
+      // Preview mode never touches Supabase - this branch just seeds a
+      // fixed sample session/profile once, so we intentionally set
+      // state directly here rather than subscribing to anything external.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSession(PREVIEW_SESSION);
+      setProfile({ id: PREVIEW_USER_ID, name: "You", hue: hueFromId(PREVIEW_USER_ID) });
+      setLoading(false);
+      setIsPreview(true);
+      return;
+    }
+
     let cancelled = false;
 
     supabase.auth.getSession().then(async ({ data }) => {
@@ -85,12 +114,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    if (isPreviewMode()) {
+      exitPreviewMode();
+      setSession(null);
+      setProfile(null);
+      setIsPreview(false);
+      return;
+    }
     await supabase.auth.signOut();
   }
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, signUp, signIn, signOut }}
+      value={{
+        session,
+        profile,
+        loading,
+        isPreview,
+        signUp,
+        signIn,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
