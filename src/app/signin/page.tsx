@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { enterPreviewMode } from "@/lib/preview";
+import { basePath } from "@/lib/base-path";
 
 export default function SignInPage() {
   const { signIn } = useAuth();
@@ -24,6 +26,14 @@ export default function SignInPage() {
       return;
     }
     router.replace("/queue");
+  }
+
+  function previewDesign() {
+    enterPreviewMode();
+    // A full reload (not router.replace) so AuthProvider remounts and
+    // re-checks preview mode - it only evaluates that once per mount.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `${basePath}/queue/`;
   }
 
   return (
@@ -73,11 +83,21 @@ export default function SignInPage() {
         Sign in
       </button>
 
-      <p className="text-sm text-ink-soft text-center">
+      <p className="text-sm text-ink-soft text-center mb-6">
         New here?{" "}
         <Link href="/signup" className="text-indigo font-medium">
           Create an account
         </Link>
+      </p>
+
+      <button
+        onClick={previewDesign}
+        className="rounded-xl border border-dashed border-border py-3 text-sm font-medium text-ink-soft hover:border-indigo hover:text-indigo transition-colors"
+      >
+        Preview design (no account needed)
+      </button>
+      <p className="text-xs text-ink-soft text-center mt-2">
+        Shows the UI with sample data. Nothing you do here is saved.
       </p>
     </div>
   );
