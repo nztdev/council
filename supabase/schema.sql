@@ -109,7 +109,11 @@ create table if not exists requests (
   author_id uuid not null references profiles(id) on delete cascade,
   title text not null,
   context text not null default '',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  close_rule text not null default 'manual'
+    check (close_rule in ('manual', 'deadline', 'all_members', 'deadline_or_all_members')),
+  deadline timestamptz,
+  closed_at timestamptz
 );
 
 alter table requests enable row level security;
@@ -134,6 +138,11 @@ create policy "members can post requests to their councils"
       where cm.council_id = requests.council_id and cm.user_id = auth.uid()
     )
   );
+
+create policy "author can update their own request"
+  on requests for update
+  to authenticated
+  using (author_id = auth.uid());
 
 -- ---------------------------------------------------------------------
 -- votes
@@ -169,11 +178,31 @@ create policy "members can cast a vote on requests in their councils"
     and exists (
       select 1 from requests r
       join council_members cm on cm.council_id = r.council_id
-      where r.id = votes.request_id and cm.user_id = auth.uid()
+      where r.id = votes.request_id
+        and cm.user_id = auth.uid()
+        -- Enforce the "manual" and "deadline" close rules at the
+        -- database level, not just in the UI, so a closed request can't
+        -- accept a vote even via a direct API call. "all_members" is
+        -- intentionally not enforced here: the vote that completes
+        -- participation must itself be allowed through, so that rule
+        -- can only be evaluated after the fact (see computeRequestStatus
+        -- in src/lib/close-rules.ts, which the UI uses to hide/disable
+        -- the vote form once everyone's voted).
+        and r.closed_at is null
+        and (r.deadline is null or r.deadline > now())
     )
   );
 
 create policy "members can change their own vote"
   on votes for update
   to authenticated
-  using (user_id = auth.uid());
+  using (user_id = auth.uid())
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from requests r
+      where r.id = votes.request_id
+        and r.closed_at is null
+        and (r.deadline is null or r.deadline > now())
+    )
+  );

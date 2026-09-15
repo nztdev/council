@@ -44,11 +44,14 @@ export const requestRepository: RequestRepository = {
   get: (...args) => (isPreviewMode() ? preview : live).requestRepository.get(...args),
   create: (...args) =>
     (isPreviewMode() ? preview : live).requestRepository.create(...args),
+  close: (...args) => (isPreviewMode() ? preview : live).requestRepository.close(...args),
 };
 
 export const voteRepository: VoteRepository = {
   listForRequest: (...args) =>
     (isPreviewMode() ? preview : live).voteRepository.listForRequest(...args),
+  listForUser: (...args) =>
+    (isPreviewMode() ? preview : live).voteRepository.listForUser(...args),
   getForUserAndRequest: (...args) =>
     (isPreviewMode() ? preview : live).voteRepository.getForUserAndRequest(...args),
   cast: (...args) => (isPreviewMode() ? preview : live).voteRepository.cast(...args),

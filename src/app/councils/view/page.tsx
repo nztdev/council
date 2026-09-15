@@ -7,6 +7,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
 import { councilRepository, userRepository } from "@/lib/repositories";
 import { hydrateRequests, requestRepository } from "@/lib/hydrate";
+import { computeRequestStatus } from "@/lib/close-rules";
 import type { Council, RequestWithMeta, User } from "@/types";
 
 function CouncilInner() {
@@ -56,18 +57,32 @@ function CouncilInner() {
         Past requests
       </h2>
       <div className="flex flex-col gap-3">
-        {requests.map((r) => (
-          <Link
-            key={r.id}
-            href={`/requests/view?id=${r.id}`}
-            className="rounded-2xl border border-border bg-surface p-4 hover:border-indigo transition-colors"
-          >
-            <p className="font-display font-semibold text-lg mb-1">{r.title}</p>
-            <p className="text-xs font-mono text-ink-soft">
-              {r.votes.length} {r.votes.length === 1 ? "opinion" : "opinions"}
-            </p>
-          </Link>
-        ))}
+        {requests.map((r) => {
+          const { status } = computeRequestStatus(r, council.memberIds.length, r.votes);
+          return (
+            <Link
+              key={r.id}
+              href={`/requests/view?id=${r.id}`}
+              className="rounded-2xl border border-border bg-surface p-4 hover:border-indigo transition-colors"
+            >
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <p className="font-display font-semibold text-lg">{r.title}</p>
+                <span
+                  className={`shrink-0 text-xs font-mono uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                    status === "closed"
+                      ? "bg-rose-soft text-rose"
+                      : "bg-indigo-soft text-indigo"
+                  }`}
+                >
+                  {status === "closed" ? "Closed" : "Open"}
+                </span>
+              </div>
+              <p className="text-xs font-mono text-ink-soft">
+                {r.votes.length} {r.votes.length === 1 ? "opinion" : "opinions"}
+              </p>
+            </Link>
+          );
+        })}
         {requests.length === 0 && (
           <p className="text-sm text-ink-soft">
             No requests posted to this council yet.

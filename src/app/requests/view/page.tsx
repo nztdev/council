@@ -7,6 +7,7 @@ import { Seal } from "@/components/seal";
 import { useAuth } from "@/lib/auth";
 import { voteRepository } from "@/lib/repositories";
 import { hydrateRequest, requestRepository } from "@/lib/hydrate";
+import { computeRequestStatus } from "@/lib/close-rules";
 import type { RequestWithMeta, Vote, VoteChoice } from "@/types";
 
 const CHOICES: { value: VoteChoice; label: string }[] = [
@@ -30,6 +31,7 @@ function RequestInner() {
   const [choice, setChoice] = useState<VoteChoice | null>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   async function refresh() {
     if (!id) return;
@@ -62,11 +64,23 @@ function RequestInner() {
     setSubmitting(false);
   }
 
+  async function closeRequest() {
+    if (!id) return;
+    setClosing(true);
+    await requestRepository.close(id);
+    await refresh();
+    setClosing(false);
+  }
+
   if (!request || !user) return null;
 
   const isAuthor = request.authorId === user.id;
   const hasVoted = Boolean(myVote);
-  const showResults = isAuthor || hasVoted;
+  const memberCount = request.council.memberIds.length;
+  const { status, reason } = computeRequestStatus(request, memberCount, request.votes);
+  const isClosed = status === "closed";
+  const showResults = isAuthor || hasVoted || isClosed;
+  const canVote = !hasVoted && !isClosed;
 
   const counts = { yes: 0, maybe: 0, no: 0 };
   request.votes.forEach((v) => counts[v.choice]++);
@@ -88,12 +102,25 @@ function RequestInner() {
         {request.title}
       </h1>
       {request.context && (
-        <p className="text-ink-soft text-sm leading-relaxed mb-8">
+        <p className="text-ink-soft text-sm leading-relaxed mb-4">
           {request.context}
         </p>
       )}
 
-      {!showResults && (
+      <div className="flex items-center gap-2 mb-8">
+        <span
+          className={`text-xs font-mono uppercase tracking-wide px-2 py-1 rounded-full ${
+            isClosed
+              ? "bg-rose-soft text-rose"
+              : "bg-indigo-soft text-indigo"
+          }`}
+        >
+          {isClosed ? "Closed" : "Open"}
+        </span>
+        <span className="text-xs text-ink-soft">{reason}</span>
+      </div>
+
+      {canVote && (
         <div className="rounded-3xl border border-border bg-surface p-5 mb-8">
           <p className="text-xs font-mono uppercase tracking-wide text-ink-soft mb-3">
             Your opinion
@@ -153,6 +180,16 @@ function RequestInner() {
               <VoteRow key={v.id} vote={v} />
             ))}
           </div>
+
+          {isAuthor && request.closeRule === "manual" && !isClosed && (
+            <button
+              onClick={closeRequest}
+              disabled={closing}
+              className="mt-6 w-full rounded-xl border border-rose text-rose py-2.5 text-sm font-medium disabled:opacity-40"
+            >
+              Close this question
+            </button>
+          )}
         </div>
       )}
     </div>

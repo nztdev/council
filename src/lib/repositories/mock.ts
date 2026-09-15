@@ -38,6 +38,7 @@ const requests: CouncilRequest[] = [
     context:
       "Strong portfolio, slightly over budget, available in two weeks. Team needs help now.",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    closeRule: "all_members",
   },
   {
     id: "preview-request-madrid",
@@ -47,6 +48,8 @@ const requests: CouncilRequest[] = [
     context:
       "Lower cost of living, better talent pool, but a full relocation for six people.",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
+    closeRule: "deadline_or_all_members",
+    deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
   },
 ];
 
@@ -134,7 +137,7 @@ export const requestRepository: RequestRepository = {
   async get(id) {
     return requests.find((r) => r.id === id);
   },
-  async create({ councilId, authorId, title, context }) {
+  async create({ councilId, authorId, title, context, closeRule, deadline }) {
     const request: CouncilRequest = {
       id: `preview-request-${Date.now()}`,
       councilId,
@@ -142,8 +145,15 @@ export const requestRepository: RequestRepository = {
       title,
       context,
       createdAt: new Date().toISOString(),
+      closeRule,
+      deadline,
     };
     requests.push(request);
+    return request;
+  },
+  async close(id) {
+    const request = requests.find((r) => r.id === id);
+    if (request) request.closedAt = new Date().toISOString();
     return request;
   },
 };
@@ -151,6 +161,11 @@ export const requestRepository: RequestRepository = {
 export const voteRepository: VoteRepository = {
   async listForRequest(requestId) {
     return votes.filter((v) => v.requestId === requestId);
+  },
+  async listForUser(userId) {
+    return votes
+      .filter((v) => v.userId === userId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   async getForUserAndRequest(requestId, userId) {
     return votes.find((v) => v.requestId === requestId && v.userId === userId);

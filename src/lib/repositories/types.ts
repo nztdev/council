@@ -1,4 +1,4 @@
-import type { Council, CouncilRequest, User, Vote } from "@/types";
+import type { CloseRule, Council, CouncilRequest, User, Vote } from "@/types";
 
 /**
  * These interfaces are the seam between the app and its data source.
@@ -37,12 +37,17 @@ export interface RequestRepository {
     authorId: string;
     title: string;
     context: string;
+    closeRule: CloseRule;
     deadline?: string;
   }): Promise<CouncilRequest>;
+  /** Only meaningful for closeRule "manual" - other rules close themselves
+   * based on computeRequestStatus() and never need this called. */
+  close(id: string): Promise<CouncilRequest | undefined>;
 }
 
 export interface VoteRepository {
   listForRequest(requestId: string): Promise<Vote[]>;
+  listForUser(userId: string): Promise<Vote[]>;
   getForUserAndRequest(
     requestId: string,
     userId: string

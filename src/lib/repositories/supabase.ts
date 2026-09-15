@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { hueFromId } from "@/lib/hue";
-import type { Council, CouncilRequest, Vote, VoteChoice } from "@/types";
+import type { CloseRule, Council, CouncilRequest, Vote, VoteChoice } from "@/types";
 import type {
   CouncilRepository,
   RequestRepository,
@@ -15,6 +15,9 @@ function mapRequest(row: {
   title: string;
   context: string;
   created_at: string;
+  close_rule: string;
+  deadline: string | null;
+  closed_at: string | null;
 }): CouncilRequest {
   return {
     id: row.id,
@@ -23,6 +26,9 @@ function mapRequest(row: {
     title: row.title,
     context: row.context,
     createdAt: row.created_at,
+    closeRule: row.close_rule as CloseRule,
+    deadline: row.deadline ?? undefined,
+    closedAt: row.closed_at ?? undefined,
   };
 }
 
@@ -185,14 +191,31 @@ export const requestRepository: RequestRepository = {
       .single();
     return data ? mapRequest(data) : undefined;
   },
-  async create({ councilId, authorId, title, context }) {
+  async create({ councilId, authorId, title, context, closeRule, deadline }) {
     const { data, error } = await supabase
       .from("requests")
-      .insert({ council_id: councilId, author_id: authorId, title, context })
+      .insert({
+        council_id: councilId,
+        author_id: authorId,
+        title,
+        context,
+        close_rule: closeRule,
+        deadline: deadline ?? null,
+      })
       .select()
       .single();
     if (error || !data) throw new Error(error?.message ?? "Failed to create request");
     return mapRequest(data);
+  },
+  async close(id) {
+    const { data, error } = await supabase
+      .from("requests")
+      .update({ closed_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data ? mapRequest(data) : undefined;
   },
 };
 
@@ -202,6 +225,15 @@ export const voteRepository: VoteRepository = {
       .from("votes")
       .select("*")
       .eq("request_id", requestId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapVote);
+  },
+  async listForUser(userId) {
+    const { data, error } = await supabase
+      .from("votes")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map(mapVote);
   },

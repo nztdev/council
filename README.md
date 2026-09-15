@@ -1,6 +1,6 @@
 # Council
 
-Personal advisory councils: create a trusted "council" of people, then post a
+Personal advisory councils: create a trusted "council" of people, post a
 question, get quick judgment back. This build has a real Supabase backend
 and real accounts (email/password) — no demo users.
 
@@ -25,6 +25,10 @@ and real accounts (email/password) — no demo users.
 2. In the SQL Editor, run everything in `supabase/schema.sql`. This
    creates the tables, Row Level Security policies, and a trigger that
    creates a `profiles` row whenever someone signs up.
+   - If you already ran an older version of `schema.sql` against a live
+     project, run `supabase/migrations/001_close_rules.sql` instead of
+     re-running the whole file - it adds the close-rule columns and
+     policies without touching anything else.
 3. In **Project Settings → API**, copy the Project URL and the `anon`
    public key.
 4. Copy `.env.example` to `.env.local` and paste them in.
@@ -51,6 +55,13 @@ Open http://localhost:3000, sign up, and you're in.
    Yes / Maybe / No with an optional reason
 5. Results aggregate on the request page (`/requests/view?id=...`) once
    you've voted or you're the author
+
+When posting a question, you choose how it closes: manually (you close
+it yourself), by a deadline, once every council member has voted, or
+whichever of those comes first. All four rules are defined in one place,
+`src/lib/close-rules.ts` - adding a fifth rule later means one new entry
+there plus one new `if` branch, nothing else in the app needs to change.
+Your own voting history across every council is at `/votes`.
 
 Council/request detail pages use query params (`?id=...`) rather than
 dynamic path segments, because static export needs to know every URL at
