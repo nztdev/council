@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: "Council",
   description: "Ask the people whose judgement you trust.",
   manifest: `${basePath}/manifest.json`,
+  icons: { icon: `${basePath}/icon-192.png` },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
