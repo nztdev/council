@@ -13,6 +13,8 @@ import type { CloseRule, Council, CouncilRequest, User, Vote } from "@/types";
 export interface UserRepository {
   list(): Promise<User[]>;
   get(id: string): Promise<User | undefined>;
+  /** Marks onboarding as complete (or explicitly skipped) for this user. */
+  completeOnboarding(userId: string): Promise<void>;
 }
 
 export interface CouncilRepository {
@@ -26,6 +28,7 @@ export interface CouncilRepository {
     memberIds: string[];
   }): Promise<Council>;
   addMember(councilId: string, userId: string): Promise<Council | undefined>;
+  rename(councilId: string, name: string): Promise<Council | undefined>;
 }
 
 export interface RequestRepository {

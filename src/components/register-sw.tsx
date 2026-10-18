@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-// NEXT_PUBLIC_* vars are inlined at build time, so this correctly
-// resolves to "" locally/Vercel/Capacitor and "/<repo-name>" when the
-// GitHub Pages workflow sets NEXT_PUBLIC_BASE_PATH.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+import { basePath } from "@/lib/base-path";
 
 export function RegisterServiceWorker() {
   useEffect(() => {

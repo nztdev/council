@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { voteRepository } from "@/lib/repositories";
 import { hydrateRequest, requestRepository } from "@/lib/hydrate";
 import { computeRequestStatus } from "@/lib/close-rules";
+import { Button, Card, Badge, Textarea } from "@/components/ui";
 import type { RequestWithMeta, Vote, VoteChoice } from "@/types";
 
 const CHOICES: { value: VoteChoice; label: string }[] = [
@@ -92,9 +93,7 @@ function RequestInner() {
         <Seal user={request.author} />
         <div>
           <p className="font-medium leading-tight">{request.author.name}</p>
-          <p className="text-xs text-ink-soft font-mono">
-            {request.council.name}
-          </p>
+          <p className="text-xs text-ink-soft font-mono">{request.council.name}</p>
         </div>
       </div>
 
@@ -102,26 +101,16 @@ function RequestInner() {
         {request.title}
       </h1>
       {request.context && (
-        <p className="text-ink-soft text-sm leading-relaxed mb-4">
-          {request.context}
-        </p>
+        <p className="text-ink-soft text-sm leading-relaxed mb-4">{request.context}</p>
       )}
 
       <div className="flex items-center gap-2 mb-8">
-        <span
-          className={`text-xs font-mono uppercase tracking-wide px-2 py-1 rounded-full ${
-            isClosed
-              ? "bg-rose-soft text-rose"
-              : "bg-indigo-soft text-indigo"
-          }`}
-        >
-          {isClosed ? "Closed" : "Open"}
-        </span>
+        <Badge tone={isClosed ? "rose" : "indigo"}>{isClosed ? "Closed" : "Open"}</Badge>
         <span className="text-xs text-ink-soft">{reason}</span>
       </div>
 
       {canVote && (
-        <div className="rounded-3xl border border-border bg-surface p-5 mb-8">
+        <Card className="p-5 mb-8">
           <p className="text-xs font-mono uppercase tracking-wide text-ink-soft mb-3">
             Your opinion
           </p>
@@ -140,21 +129,19 @@ function RequestInner() {
               </button>
             ))}
           </div>
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Add a reason (optional)"
-            rows={3}
-            className="w-full rounded-xl border border-border bg-stone px-3 py-2 text-sm outline-none focus:border-indigo resize-none mb-4"
-          />
-          <button
-            onClick={submitVote}
-            disabled={!choice || submitting}
-            className="w-full btn-primary rounded-xl py-2.5 text-sm font-medium"
-          >
+          <div className="mb-4">
+            <Textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Add a reason (optional)"
+              rows={3}
+              className="bg-stone"
+            />
+          </div>
+          <Button onClick={submitVote} disabled={!choice || submitting} className="w-full">
             Submit opinion
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {showResults && (
@@ -182,13 +169,14 @@ function RequestInner() {
           </div>
 
           {isAuthor && request.closeRule === "manual" && !isClosed && (
-            <button
+            <Button
+              variant="destructive"
               onClick={closeRequest}
               disabled={closing}
-              className="mt-6 w-full rounded-xl border border-rose text-rose py-2.5 text-sm font-medium disabled:opacity-40"
+              className="mt-6 w-full"
             >
               Close this question
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -208,7 +196,7 @@ function VoteRow({ vote }: { vote: Vote }) {
   }, [vote.userId]);
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <Card className="p-4">
       <div className="flex items-center justify-between mb-1">
         <span className="font-medium text-sm">{name}</span>
         <span className={`text-xs font-mono uppercase ${choiceColor(vote.choice)}`}>
@@ -218,7 +206,7 @@ function VoteRow({ vote }: { vote: Vote }) {
       {vote.comment && (
         <p className="text-sm text-ink-soft leading-relaxed">{vote.comment}</p>
       )}
-    </div>
+    </Card>
   );
 }
 

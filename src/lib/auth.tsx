@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { hueFromId } from "@/lib/hue";
 import { isPreviewMode, exitPreviewMode } from "@/lib/preview";
 import { PREVIEW_USER_ID } from "@/lib/repositories/mock";
+import { userRepository } from "@/lib/repositories";
 import type { User } from "@/types";
 
 interface AuthState {
@@ -26,6 +27,11 @@ interface AuthState {
   ) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Re-fetches the profile (e.g. after completing onboarding) - the
+   * provider only fetches it automatically on sign-in/mount, so any
+   * change made outside of that (like onboarding) needs this called
+   * explicitly or RequireAuth would keep reading the stale value. */
+  refreshProfile: () => Promise<void>;
 }
 
 // A session object that only ever needs to look truthy to the rest of
@@ -40,34 +46,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  // Starts false on every render, including the client's very first one,
-  // so it matches the server-rendered HTML exactly. Only flips inside
-  // the effect below (after mount) - reading localStorage directly during
-  // render, instead of in an effect, is what was causing a hydration
-  // mismatch: the server has no localStorage at all, so it always
-  // rendered "false", while the client's first render could see "true"
-  // immediately if the flag was already set, before hydration finished.
   const [isPreview, setIsPreview] = useState(false);
 
   async function loadProfile(userId: string) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, name")
-      .eq("id", userId)
-      .single();
-    if (data) {
-      setProfile({ id: data.id, name: data.name, hue: hueFromId(data.id) });
-    }
+    const found = await userRepository.get(userId);
+    if (found) setProfile(found);
   }
 
   useEffect(() => {
     if (isPreviewMode()) {
-      // Preview mode never touches Supabase - this branch just seeds a
-      // fixed sample session/profile once, so we intentionally set
-      // state directly here rather than subscribing to anything external.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession(PREVIEW_SESSION);
-      setProfile({ id: PREVIEW_USER_ID, name: "You", hue: hueFromId(PREVIEW_USER_ID) });
+      setProfile({
+        id: PREVIEW_USER_ID,
+        name: "You",
+        hue: hueFromId(PREVIEW_USER_ID),
+        onboardedAt: new Date().toISOString(),
+      });
       setLoading(false);
       setIsPreview(true);
       return;
@@ -124,6 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  async function refreshProfile() {
+    if (isPreviewMode()) return;
+    if (session) await loadProfile(session.user.id);
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -134,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         signOut,
+        refreshProfile,
       }}
     >
       {children}

@@ -63,11 +63,23 @@ export const userRepository: UserRepository = {
   async get(id) {
     const { data } = await supabase
       .from("profiles")
-      .select("id, name")
+      .select("id, name, onboarded_at")
       .eq("id", id)
       .single();
     if (!data) return undefined;
-    return { id: data.id, name: data.name, hue: hueFromId(data.id) };
+    return {
+      id: data.id,
+      name: data.name,
+      hue: hueFromId(data.id),
+      onboardedAt: data.onboarded_at ?? undefined,
+    };
+  },
+  async completeOnboarding(userId) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ onboarded_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (error) throw new Error(error.message);
   },
 };
 
@@ -79,22 +91,39 @@ async function memberIdsFor(councilId: string): Promise<string[]> {
   return (data ?? []).map((m) => m.user_id);
 }
 
+function mapCouncil(row: {
+  id: string;
+  name: string;
+  description: string;
+  owner_id: string;
+  created_at: string;
+  is_supreme: boolean;
+}, memberIds: string[]): Council {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    ownerId: row.owner_id,
+    memberIds,
+    createdAt: row.created_at,
+    isSupreme: row.is_supreme,
+  };
+}
+
 export const councilRepository: CouncilRepository = {
   async list() {
     // RLS already restricts results to councils the caller belongs to,
     // so list() and listForUser() are equivalent against Supabase.
-    const { data, error } = await supabase.from("councils").select("*");
+    // Supreme council sorts first, then newest first.
+    const { data, error } = await supabase
+      .from("councils")
+      .select("*")
+      .order("is_supreme", { ascending: false })
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     const councils = data ?? [];
     return Promise.all(
-      councils.map(async (c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        ownerId: c.owner_id,
-        memberIds: await memberIdsFor(c.id),
-        createdAt: c.created_at,
-      }))
+      councils.map(async (c) => mapCouncil(c, await memberIdsFor(c.id)))
     );
   },
   async listForUser() {
@@ -107,19 +136,12 @@ export const councilRepository: CouncilRepository = {
       .eq("id", id)
       .single();
     if (!data) return undefined;
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      ownerId: data.owner_id,
-      memberIds: await memberIdsFor(data.id),
-      createdAt: data.created_at,
-    };
+    return mapCouncil(data, await memberIdsFor(data.id));
   },
   async create({ name, description, ownerId, memberIds }) {
     const { data, error } = await supabase
       .from("councils")
-      .insert({ name, description, owner_id: ownerId })
+      .insert({ name, description, owner_id: ownerId, is_supreme: false })
       .select()
       .single();
     if (error || !data) throw new Error(error?.message ?? "Failed to create council");
@@ -130,20 +152,27 @@ export const councilRepository: CouncilRepository = {
       .insert(allMemberIds.map((userId) => ({ council_id: data.id, user_id: userId })));
     if (memberError) throw new Error(memberError.message);
 
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      ownerId: data.owner_id,
-      memberIds: allMemberIds,
-      createdAt: data.created_at,
-    } satisfies Council;
+    return mapCouncil(data, allMemberIds);
   },
   async addMember(councilId, userId) {
     await supabase
       .from("council_members")
       .insert({ council_id: councilId, user_id: userId });
     return councilRepository.get(councilId);
+  },
+  async rename(councilId, name) {
+    // is_supreme councils can be renamed - only deletion is blocked (and
+    // there is no delete feature yet at all, so nothing to guard here
+    // beyond not exposing one in the UI for is_supreme councils).
+    const { data, error } = await supabase
+      .from("councils")
+      .update({ name })
+      .eq("id", councilId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    if (!data) return undefined;
+    return mapCouncil(data, await memberIdsFor(data.id));
   },
 };
 

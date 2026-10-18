@@ -2,6 +2,10 @@
 -- Run this once in your project's SQL editor (Supabase Dashboard -> SQL Editor).
 -- Requires the "pgcrypto" extension for gen_random_uuid(), which Supabase
 -- enables by default.
+--
+-- If you already ran an older version of this file against a live
+-- project, don't re-run this whole file - use the numbered files in
+-- supabase/migrations/ instead, in order.
 
 -- ---------------------------------------------------------------------
 -- profiles: public-facing user info, one row per auth.users row.
@@ -10,7 +14,8 @@
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  onboarded_at timestamptz
 );
 
 alter table profiles enable row level security;
@@ -25,33 +30,20 @@ create policy "users can update their own profile"
   to authenticated
   using (auth.uid() = id);
 
--- Auto-create a profile row whenever someone signs up.
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, name)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1))
-  );
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
 -- ---------------------------------------------------------------------
--- councils
+-- councils (defined before the signup trigger below, since the trigger
+-- creates a row here for every new user)
 -- ---------------------------------------------------------------------
 create table if not exists councils (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text not null default '',
   owner_id uuid not null references profiles(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Every user's permanent first council. Renamable, never deletable -
+  -- there is no delete feature yet at all, so for now that's enforced
+  -- simply by never building a delete action for a row where this is true.
+  is_supreme boolean not null default false
 );
 
 create table if not exists council_members (
@@ -79,6 +71,11 @@ create policy "signed-in users can create councils they own"
   to authenticated
   with check (owner_id = auth.uid());
 
+create policy "owner can update their own council"
+  on councils for update
+  to authenticated
+  using (owner_id = auth.uid());
+
 create policy "members can read their council's membership rows"
   on council_members for select
   to authenticated
@@ -99,6 +96,38 @@ create policy "council owner can add members"
       where c.id = council_id and c.owner_id = auth.uid()
     )
   );
+
+-- Auto-create a profile row, plus a permanent "Supreme Council" with
+-- just that person in it, whenever someone signs up. Doing this here
+-- (rather than client-side after signUp()) means it happens atomically
+-- regardless of email-confirmation settings or which client the account
+-- was created from.
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  new_council_id uuid;
+begin
+  insert into public.profiles (id, name)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1))
+  );
+
+  insert into public.councils (name, description, owner_id, is_supreme)
+  values ('Supreme Council', 'Your most trusted people, for anything.', new.id, true)
+  returning id into new_council_id;
+
+  insert into public.council_members (council_id, user_id)
+  values (new_council_id, new.id);
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- ---------------------------------------------------------------------
 -- requests
@@ -181,13 +210,9 @@ create policy "members can cast a vote on requests in their councils"
       where r.id = votes.request_id
         and cm.user_id = auth.uid()
         -- Enforce the "manual" and "deadline" close rules at the
-        -- database level, not just in the UI, so a closed request can't
-        -- accept a vote even via a direct API call. "all_members" is
-        -- intentionally not enforced here: the vote that completes
-        -- participation must itself be allowed through, so that rule
-        -- can only be evaluated after the fact (see computeRequestStatus
-        -- in src/lib/close-rules.ts, which the UI uses to hide/disable
-        -- the vote form once everyone's voted).
+        -- database level, not just in the UI. "all_members" is not
+        -- enforced here: the vote that completes participation must
+        -- itself be allowed through (see src/lib/close-rules.ts).
         and r.closed_at is null
         and (r.deadline is null or r.deadline > now())
     )

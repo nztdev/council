@@ -2,38 +2,44 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import { ListChecks, Users, CircleUser } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const tabs = [
-  { href: "/queue", label: "Queue" },
-  { href: "/councils", label: "Councils" },
-  { href: "/profile", label: "Profile" },
+  { href: "/queue", label: "Queue", icon: ListChecks },
+  { href: "/councils", label: "Councils", icon: Users },
+  { href: "/profile", label: "Profile", icon: CircleUser },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const { session } = useAuth();
 
-  if (!session || pathname === "/signin" || pathname === "/signup") return null;
+  const hiddenOn = ["/signin", "/signup", "/onboarding"];
+  if (!session || hiddenOn.some((p) => pathname === p || pathname === `${p}/`)) {
+    return null;
+  }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 border-t border-border bg-surface/90 backdrop-blur-md">
-      <div className="max-w-md mx-auto flex">
+    <nav className="fixed bottom-0 inset-x-0 border-t border-border bg-surface/90 backdrop-blur-md safe-bottom">
+      <div className="max-w-md mx-auto flex pt-2">
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
+          const Icon = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-                active ? "text-indigo" : "text-ink-soft"
-              }`}
+              className="flex-1 flex flex-col items-center gap-1 py-1 text-center text-xs font-medium"
             >
-              <span
-                className={`inline-block ${
-                  active ? "border-b-2 border-indigo pb-2 -mb-2" : ""
-                }`}
+              <motion.div
+                animate={{ scale: active ? 1.08 : 1 }}
+                className={active ? "text-indigo" : "text-ink-soft"}
               >
+                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
+              </motion.div>
+              <span className={active ? "text-indigo" : "text-ink-soft"}>
                 {tab.label}
               </span>
             </Link>

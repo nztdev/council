@@ -23,6 +23,8 @@ import type {
 export const userRepository: UserRepository = {
   list: (...args) => (isPreviewMode() ? preview : live).userRepository.list(...args),
   get: (...args) => (isPreviewMode() ? preview : live).userRepository.get(...args),
+  completeOnboarding: (...args) =>
+    (isPreviewMode() ? preview : live).userRepository.completeOnboarding(...args),
 };
 
 export const councilRepository: CouncilRepository = {
@@ -34,6 +36,7 @@ export const councilRepository: CouncilRepository = {
     (isPreviewMode() ? preview : live).councilRepository.create(...args),
   addMember: (...args) =>
     (isPreviewMode() ? preview : live).councilRepository.addMember(...args),
+  rename: (...args) => (isPreviewMode() ? preview : live).councilRepository.rename(...args),
 };
 
 export const requestRepository: RequestRepository = {

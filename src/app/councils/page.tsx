@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { motion } from "framer-motion";
+import { Crown, Plus, Users2 } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
 import { useAuth } from "@/lib/auth";
 import { councilRepository, userRepository } from "@/lib/repositories";
+import { Button, Card, Badge, Input, Label, EmptyState } from "@/components/ui";
 import type { Council, User } from "@/types";
 
 function CouncilsContent() {
@@ -56,43 +58,45 @@ function CouncilsContent() {
   return (
     <div className="max-w-md w-full mx-auto px-6 pt-10 flex-1 flex flex-col">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="font-display font-semibold tracking-tight text-3xl">Your councils</h1>
-        <button
+        <h1 className="font-display font-semibold tracking-tight text-3xl">
+          Your councils
+        </h1>
+        <Button
+          variant="secondary"
           onClick={() => setCreating((c) => !c)}
-          className="font-mono text-xs uppercase tracking-wide rounded-full border border-border px-3 py-2 hover:border-indigo hover:text-indigo transition-colors"
+          icon={<Plus size={16} />}
+          className="rounded-full py-2 px-3 text-xs uppercase tracking-wide font-mono"
         >
-          {creating ? "Cancel" : "+ Create"}
-        </button>
+          {creating ? "Cancel" : "Create"}
+        </Button>
       </div>
 
       {creating && (
-        <div className="rounded-3xl border border-border bg-surface p-5 mb-8 flex flex-col gap-4">
+        <Card className="p-5 mb-8 flex flex-col gap-4">
           <div>
-            <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-              Name
-            </label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Business Council"
-              className="mt-1 w-full rounded-xl border border-border bg-stone px-3 py-2 text-sm outline-none focus:border-indigo"
-            />
+            <Label>Name</Label>
+            <div className="mt-1">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Business Council"
+                className="bg-stone"
+              />
+            </div>
           </div>
           <div>
-            <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-              Description
-            </label>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="People whose business judgement I trust."
-              className="mt-1 w-full rounded-xl border border-border bg-stone px-3 py-2 text-sm outline-none focus:border-indigo"
-            />
+            <Label>Description</Label>
+            <div className="mt-1">
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="People whose business judgement I trust."
+                className="bg-stone"
+              />
+            </div>
           </div>
           <div>
-            <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-              Invite
-            </label>
+            <Label>Invite</Label>
             <div className="mt-2 flex flex-wrap gap-2">
               {allUsers.map((u) => {
                 const active = memberIds.includes(u.id);
@@ -113,40 +117,44 @@ function CouncilsContent() {
               })}
             </div>
           </div>
-          <button
-            onClick={submit}
-            disabled={!name.trim()}
-            className="btn-primary rounded-xl py-2.5 text-sm font-medium"
-          >
+          <Button onClick={submit} disabled={!name.trim()} className="w-full">
             Create council
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       <div className="flex flex-col gap-3">
-        {councils?.map((c) => (
-          <Link
+        {councils?.map((c, i) => (
+          <motion.div
             key={c.id}
-            href={`/councils/view?id=${c.id}`}
-            className="rounded-2xl border border-border bg-surface p-4 hover:border-indigo transition-colors"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-display font-semibold text-lg">{c.name}</h2>
-              <div className="flex -space-x-2">
-                {c.memberIds.slice(0, 4).map((id) => {
-                  const u = allUsers.find((au) => au.id === id) ??
-                    (id === user?.id ? user : undefined);
-                  return u ? <Seal key={id} user={u} size="sm" /> : null;
-                })}
+            <Card href={`/councils/view?id=${c.id}`} className="p-4">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                {c.isSupreme && <Crown className="text-brass shrink-0" size={16} />}
+                <h2 className="font-display font-semibold text-lg">{c.name}</h2>
+                {c.isSupreme && <Badge tone="brass">Supreme</Badge>}
               </div>
-            </div>
-            <p className="text-sm text-ink-soft">{c.description}</p>
-          </Link>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-ink-soft flex-1 min-w-0">{c.description}</p>
+                <div className="flex -space-x-2 shrink-0">
+                  {c.memberIds.slice(0, 4).map((id) => {
+                    const u =
+                      allUsers.find((au) => au.id === id) ??
+                      (id === user?.id ? user : undefined);
+                    return u ? <Seal key={id} user={u} size="sm" /> : null;
+                  })}
+                </div>
+              </div>
+            </Card>
+          </motion.div>
         ))}
         {councils?.length === 0 && (
-          <div className="rounded-3xl border border-dashed border-border p-8 text-center text-ink-soft text-sm">
+          <EmptyState icon={<Users2 className="text-ink-soft" size={28} />}>
             No councils yet. Create one to start asking for judgement.
-          </div>
+          </EmptyState>
         )}
       </div>
     </div>

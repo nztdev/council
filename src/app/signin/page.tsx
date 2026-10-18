@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { enterPreviewMode } from "@/lib/preview";
 import { basePath } from "@/lib/base-path";
+import { Button, Input, Label } from "@/components/ui";
 
 export default function SignInPage() {
   const { signIn } = useAuth();
@@ -30,8 +32,6 @@ export default function SignInPage() {
 
   function previewDesign() {
     enterPreviewMode();
-    // A full reload (not router.replace) so AuthProvider remounts and
-    // re-checks preview mode - it only evaluates that once per mount.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `${basePath}/queue/`;
   }
@@ -48,40 +48,38 @@ export default function SignInPage() {
 
       <div className="flex flex-col gap-4 mb-6">
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none focus:border-indigo"
-          />
+          <Label>Email</Label>
+          <div className="mt-1">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
         </div>
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none focus:border-indigo"
-          />
+          <Label>Password</Label>
+          <div className="mt-1">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
         </div>
       </div>
 
       {error && <p className="text-sm text-rose mb-4">{error}</p>}
 
-      <button
+      <Button
         onClick={submit}
         disabled={!email.trim() || !password || submitting}
-        className="btn-primary rounded-xl py-3 text-sm font-medium mb-6"
+        className="mb-6 w-full"
       >
         Sign in
-      </button>
+      </Button>
 
       <p className="text-sm text-ink-soft text-center mb-6">
         New here?{" "}
@@ -90,12 +88,14 @@ export default function SignInPage() {
         </Link>
       </p>
 
-      <button
+      <Button
+        variant="secondary"
         onClick={previewDesign}
-        className="rounded-xl border border-dashed border-border py-3 text-sm font-medium text-ink-soft hover:border-indigo hover:text-indigo transition-colors"
+        icon={<Sparkles size={16} />}
+        className="w-full border-dashed"
       >
         Preview design (no account needed)
-      </button>
+      </Button>
       <p className="text-xs text-ink-soft text-center mt-2">
         Shows the UI with sample data. Nothing you do here is saved.
       </p>

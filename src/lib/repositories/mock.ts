@@ -12,7 +12,7 @@ import { hueFromId } from "@/lib/hue";
 export const PREVIEW_USER_ID = "preview-you";
 
 const users: User[] = [
-  { id: PREVIEW_USER_ID, name: "You", hue: hueFromId(PREVIEW_USER_ID) },
+  { id: PREVIEW_USER_ID, name: "You", hue: hueFromId(PREVIEW_USER_ID), onboardedAt: new Date().toISOString() },
   { id: "preview-sarah", name: "Sarah", hue: hueFromId("preview-sarah") },
   { id: "preview-alex", name: "Alex", hue: hueFromId("preview-alex") },
   { id: "preview-james", name: "James", hue: hueFromId("preview-james") },
@@ -20,12 +20,22 @@ const users: User[] = [
 
 const councils: Council[] = [
   {
+    id: "preview-council-supreme",
+    name: "Supreme Council",
+    description: "Your most trusted people, for anything.",
+    ownerId: PREVIEW_USER_ID,
+    memberIds: [PREVIEW_USER_ID, "preview-sarah"],
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
+    isSupreme: true,
+  },
+  {
     id: "preview-council-business",
     name: "Business Council",
     description: "People whose business judgement I trust.",
     ownerId: PREVIEW_USER_ID,
     memberIds: [PREVIEW_USER_ID, "preview-sarah", "preview-alex", "preview-james"],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
+    isSupreme: false,
   },
 ];
 
@@ -79,11 +89,17 @@ export const userRepository: UserRepository = {
   async get(id) {
     return users.find((u) => u.id === id);
   },
+  async completeOnboarding(userId) {
+    const user = users.find((u) => u.id === userId);
+    if (user) user.onboardedAt = new Date().toISOString();
+  },
 };
 
 export const councilRepository: CouncilRepository = {
   async list() {
-    return councils;
+    return [...councils].sort((a, b) =>
+      a.isSupreme === b.isSupreme ? 0 : a.isSupreme ? -1 : 1
+    );
   },
   async listForUser(userId) {
     return councils.filter((c) => c.memberIds.includes(userId));
@@ -99,6 +115,7 @@ export const councilRepository: CouncilRepository = {
       ownerId,
       memberIds: Array.from(new Set([ownerId, ...memberIds])),
       createdAt: new Date().toISOString(),
+      isSupreme: false,
     };
     councils.push(council);
     return council;
@@ -108,6 +125,11 @@ export const councilRepository: CouncilRepository = {
     if (council && !council.memberIds.includes(userId)) {
       council.memberIds.push(userId);
     }
+    return council;
+  },
+  async rename(councilId, name) {
+    const council = councils.find((c) => c.id === councilId);
+    if (council) council.name = name;
     return council;
   },
 };

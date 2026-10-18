@@ -7,13 +7,6 @@ export interface CloseRuleOption {
   needsDeadline: boolean;
 }
 
-/**
- * Every close rule the app supports, in one place. To add a new one:
- * add an entry here, add a branch in computeRequestStatus() below, and
- * (if it needs new data) a field on CouncilRequest in src/types. No
- * screen needs to change - the new-request form, the status badge, and
- * the "close this" button all read through this file.
- */
 export const CLOSE_RULE_OPTIONS: CloseRuleOption[] = [
   {
     id: "manual",
@@ -50,11 +43,6 @@ export interface RequestStatus {
   reason: string;
 }
 
-/**
- * Pure function: given a request and how many members/votes it has,
- * decide whether it's open or closed and why. Nothing here talks to a
- * database - callers pass in whatever counts they already have.
- */
 export function computeRequestStatus(
   request: Pick<CouncilRequest, "closeRule" | "deadline" | "closedAt">,
   memberCount: number,
@@ -83,7 +71,6 @@ export function computeRequestStatus(
       : { status: "open", reason: `Waiting on ${memberCount - voteCount} more ${memberCount - voteCount === 1 ? "person" : "people"}` };
   }
 
-  // deadline_or_all_members
   if (allVoted) return { status: "closed", reason: "Everyone has voted" };
   if (deadlinePassed) return { status: "closed", reason: "Deadline passed" };
   return {

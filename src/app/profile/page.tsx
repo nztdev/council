@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
 import { useAuth } from "@/lib/auth";
 import { basePath } from "@/lib/base-path";
+import { Card } from "@/components/ui";
+import { ListChecks, LogOut } from "lucide-react";
 
 function ProfileContent() {
   const { profile, signOut, isPreview } = useAuth();
@@ -41,17 +42,18 @@ function ProfileContent() {
         </div>
       </div>
 
-      <Link
-        href="/votes"
-        className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium mb-8 hover:border-indigo transition-colors"
-      >
-        My votes
-      </Link>
+      <Card href="/votes" className="p-4 mb-8">
+        <div className="flex items-center gap-3">
+          <ListChecks className="text-indigo" size={20} />
+          <span className="text-sm font-medium">My votes</span>
+        </div>
+      </Card>
 
       <button
         onClick={handleSignOut}
-        className="text-sm text-rose font-medium text-left"
+        className="inline-flex items-center gap-2 text-sm font-medium text-rose hover:opacity-80 transition-opacity"
       >
+        <LogOut size={16} />
         {isPreview ? "Exit preview" : "Sign out"}
       </button>
     </div>

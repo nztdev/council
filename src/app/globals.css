@@ -50,12 +50,14 @@
 
 html {
   background: var(--color-stone);
+  scroll-padding-top: env(safe-area-inset-top, 0px);
 }
 
 body {
   background: var(--color-stone);
   color: var(--color-ink);
   font-family: var(--font-body);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 ::selection {
@@ -91,4 +93,11 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Keeps the fixed bottom nav clear of the home-indicator bar on iOS
+   when installed as a PWA, without affecting desktop at all (the env()
+   value is 0 there). */
+.safe-bottom {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }

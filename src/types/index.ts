@@ -13,6 +13,8 @@ export interface User {
   name: string;
   /** hue used to render this user's "seal" avatar consistently */
   hue: number;
+  /** unset until onboarding is completed (or skipped) */
+  onboardedAt?: string;
 }
 
 export interface Council {
@@ -22,6 +24,8 @@ export interface Council {
   ownerId: string;
   memberIds: string[];
   createdAt: string;
+  /** every user's permanent first council - renamable, never deletable */
+  isSupreme: boolean;
 }
 
 export interface CouncilRequest {

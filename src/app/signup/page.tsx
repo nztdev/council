@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { Button, Input, Label } from "@/components/ui";
 
 export default function SignUpPage() {
   const { signUp } = useAuth();
@@ -24,6 +25,8 @@ export default function SignUpPage() {
       setError(error);
       return;
     }
+    // A brand-new account has no onboardedAt yet, so RequireAuth on
+    // /queue will redirect straight into /onboarding automatically.
     router.replace("/queue");
   }
 
@@ -39,53 +42,48 @@ export default function SignUpPage() {
 
       <div className="flex flex-col gap-4 mb-6">
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-            Name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Jordan Reyes"
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none focus:border-indigo"
-          />
+          <Label>Name</Label>
+          <div className="mt-1">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jordan Reyes"
+            />
+          </div>
         </div>
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none focus:border-indigo"
-          />
+          <Label>Email</Label>
+          <div className="mt-1">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
         </div>
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-ink-soft">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-3 text-sm outline-none focus:border-indigo"
-          />
+          <Label>Password</Label>
+          <div className="mt-1">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+          </div>
         </div>
       </div>
 
       {error && <p className="text-sm text-rose mb-4">{error}</p>}
 
-      <button
+      <Button
         onClick={submit}
-        disabled={
-          !name.trim() || !email.trim() || password.length < 6 || submitting
-        }
-        className="btn-primary rounded-xl py-3 text-sm font-medium mb-6"
+        disabled={!name.trim() || !email.trim() || password.length < 6 || submitting}
+        className="mb-6 w-full"
       >
         Create account
-      </button>
+      </Button>
 
       <p className="text-sm text-ink-soft text-center">
         Already have an account?{" "}

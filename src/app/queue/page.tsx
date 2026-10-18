@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Inbox } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { QueueCard } from "@/components/queue-card";
+import { EmptyState } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { requestRepository } from "@/lib/repositories";
 import { hydrateRequests } from "@/lib/hydrate";
@@ -56,10 +58,10 @@ function QueueContent() {
 
       <div className="relative flex-1" style={{ minHeight: 320 }}>
         {items && items.length === 0 && (
-          <div className="rounded-3xl border border-dashed border-border p-8 text-center text-ink-soft text-sm">
-            No pending requests right now. Check back later, or ask your own
-            council a question.
-          </div>
+          <EmptyState icon={<Inbox className="text-ink-soft" size={28} />}>
+            No pending requests right now. Check back later, or ask your
+            own council a question.
+          </EmptyState>
         )}
         {items?.slice(0, 3).map((req, i) => (
           <QueueCard
