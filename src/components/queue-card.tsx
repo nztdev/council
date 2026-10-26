@@ -53,7 +53,7 @@ export function QueueCard({
         scale: 1 - index * 0.04,
         top: index * 10,
       }}
-      className="absolute inset-x-0 rounded-3xl border border-border bg-surface p-6 shadow-sm cursor-grab select-none"
+      className="absolute inset-x-0 ui-card p-6 cursor-grab select-none"
     >
       <div className="flex items-center gap-3 mb-4">
         <Seal user={request.author} />
