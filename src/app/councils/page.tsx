@@ -8,6 +8,7 @@ import { Seal } from "@/components/seal";
 import { useAuth } from "@/lib/auth";
 import { councilRepository, userRepository } from "@/lib/repositories";
 import { Button, Card, Badge, Input, Label, EmptyState } from "@/components/ui";
+import { PageHero } from "@/components/ui/PageHero";
 import type { Council, User } from "@/types";
 
 function CouncilsContent() {
@@ -56,20 +57,21 @@ function CouncilsContent() {
   }
 
   return (
-    <div className="max-w-md w-full mx-auto px-6 pt-10 flex-1 flex flex-col">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="font-display font-semibold tracking-tight text-3xl">
-          Your councils
-        </h1>
-        <Button
-          variant="secondary"
-          onClick={() => setCreating((c) => !c)}
-          icon={<Plus size={16} />}
-          className="rounded-full py-2 px-3 text-xs uppercase tracking-wide font-mono"
-        >
-          {creating ? "Cancel" : "Create"}
-        </Button>
-      </div>
+    <div className="flex-1 flex flex-col">
+      <PageHero
+        title="Your councils"
+        action={
+          <Button
+            variant="secondary"
+            onClick={() => setCreating((c) => !c)}
+            icon={<Plus size={16} />}
+            className="py-2 px-3 text-xs uppercase tracking-wide font-mono"
+          >
+            {creating ? "Cancel" : "Create"}
+          </Button>
+        }
+      />
+      <div className="max-w-md w-full mx-auto px-6 pt-6 flex-1 flex flex-col">
 
       {creating && (
         <Card className="p-5 mb-8 flex flex-col gap-4">
@@ -156,6 +158,7 @@ function CouncilsContent() {
             No councils yet. Create one to start asking for judgement.
           </EmptyState>
         )}
+      </div>
       </div>
     </div>
   );
