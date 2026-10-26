@@ -21,12 +21,13 @@ interface ButtonProps extends NativeButtonProps {
   children: ReactNode;
 }
 
+// The look of each variant (colors, corner radius, border, shadow) is
+// defined per theme in src/app/globals.css, so it follows the active theme.
 const variantClasses: Record<Variant, string> = {
   primary: "btn-primary",
-  secondary:
-    "border border-border bg-surface text-ink hover:border-indigo hover:text-indigo",
-  destructive: "border border-rose text-rose hover:bg-rose-soft",
-  ghost: "text-ink-soft hover:text-ink",
+  secondary: "ui-btn-secondary",
+  destructive: "ui-btn-destructive",
+  ghost: "ui-btn-ghost",
 };
 
 /** Shared button primitive. Prefer this over one-off className strings
@@ -44,7 +45,7 @@ export function Button({
     <motion.button
       whileTap={disabled ? undefined : { scale: 0.97 }}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-sm font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none ${variantClasses[variant]} ${className}`}
+      className={`ui-btn inline-flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none ${variantClasses[variant]} ${className}`}
       {...rest}
     >
       {icon}
