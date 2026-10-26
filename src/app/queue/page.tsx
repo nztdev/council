@@ -6,6 +6,7 @@ import { Inbox } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { QueueCard } from "@/components/queue-card";
 import { EmptyState } from "@/components/ui";
+import { PageHero } from "@/components/ui/PageHero";
 import { useAuth } from "@/lib/auth";
 import { requestRepository } from "@/lib/repositories";
 import { hydrateRequests } from "@/lib/hydrate";
@@ -43,35 +44,40 @@ function QueueContent() {
     router.push(`/requests/view?id=${id}`);
   }
 
-  return (
-    <div className="max-w-md w-full mx-auto px-6 pt-10 flex-1 flex flex-col">
-      <p className="font-mono text-xs tracking-widest uppercase text-ink-soft mb-2">
-        {greeting()}, {user?.name}
-      </p>
-      <h1 className="font-display font-semibold tracking-tight text-3xl mb-8">
-        {items === null
-          ? "Loading your queue…"
-          : items.length === 0
-            ? "You're all caught up."
-            : `${items.length} ${items.length === 1 ? "person needs" : "people need"} your judgement.`}
-      </h1>
+  const title =
+    items === null
+      ? "Loading your queue…"
+      : items.length === 0
+        ? "You're all caught up."
+        : `${items.length} ${items.length === 1 ? "person needs" : "people need"} your judgement.`;
 
-      <div className="relative flex-1" style={{ minHeight: 320 }}>
-        {items && items.length === 0 && (
-          <EmptyState icon={<Inbox className="text-ink-soft" size={28} />}>
-            No pending requests right now. Check back later, or ask your
-            own council a question.
-          </EmptyState>
-        )}
-        {items?.slice(0, 3).map((req, i) => (
-          <QueueCard
-            key={req.id}
-            request={req}
-            index={i}
-            onSkip={() => skip()}
-            onAnswer={() => answer(req.id)}
-          />
-        ))}
+  return (
+    <div className="flex-1 flex flex-col">
+      <PageHero eyebrow={`${greeting()}, ${user?.name ?? ""}`} title={title} />
+
+      {/* In Chamber the first card overlaps the header band
+          (--hero-overlap); in the other themes the overlap is 0. */}
+      <div
+        className="relative z-10 max-w-md w-full mx-auto px-6 flex-1"
+        style={{ minHeight: 320, marginTop: "calc(-1 * var(--hero-overlap))" }}
+      >
+        <div className="relative" style={{ minHeight: 320 }}>
+          {items && items.length === 0 && (
+            <EmptyState icon={<Inbox className="text-ink-soft" size={28} />}>
+              No pending requests right now. Check back later, or ask your
+              own council a question.
+            </EmptyState>
+          )}
+          {items?.slice(0, 3).map((req, i) => (
+            <QueueCard
+              key={req.id}
+              request={req}
+              index={i}
+              onSkip={() => skip()}
+              onAnswer={() => answer(req.id)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
