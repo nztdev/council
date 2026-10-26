@@ -15,6 +15,9 @@ const sizes = {
   lg: "h-16 w-16 text-lg",
 };
 
+// Each person keeps their own hue; how light/dark it is comes from the
+// active theme (--seal-*-l in src/app/globals.css) so seals stay readable
+// on both light and dark themes.
 export function Seal({
   user,
   size = "md",
@@ -26,9 +29,9 @@ export function Seal({
     <div
       className={`${sizes[size]} shrink-0 rounded-full flex items-center justify-center font-display font-semibold ring-2 ring-offset-2 ring-offset-stone`}
       style={{
-        background: `hsl(${user.hue} 45% 92%)`,
-        color: `hsl(${user.hue} 45% 30%)`,
-        ["--tw-ring-color" as string]: `hsl(${user.hue} 45% 78%)`,
+        background: `hsl(${user.hue} 45% var(--seal-bg-l))`,
+        color: `hsl(${user.hue} 45% var(--seal-fg-l))`,
+        ["--tw-ring-color" as string]: `hsl(${user.hue} 45% var(--seal-ring-l))`,
       }}
       title={user.name}
     >
