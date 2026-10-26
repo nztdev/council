@@ -98,7 +98,7 @@ function CouncilInner() {
         ))}
       </div>
 
-      <Link href={`/councils/new?councilId=${council.id}`} className="btn-primary rounded-xl py-3 text-center text-sm font-medium mb-8">
+      <Link href={`/councils/new?councilId=${council.id}`} className="ui-btn btn-primary py-3 text-center text-sm font-medium mb-8">
         Ask your council
       </Link>
 
