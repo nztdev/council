@@ -22,7 +22,8 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 border-t border-border bg-surface/90 backdrop-blur-md safe-bottom">
+        <nav className="fixed bottom-0 inset-x-0 border-t border-border bg-surface/90 backdrop-blur-md safe-bottom"
+      style={{ borderTopWidth: "var(--nav-bw)" }}>
       <div className="max-w-md mx-auto flex pt-2">
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
