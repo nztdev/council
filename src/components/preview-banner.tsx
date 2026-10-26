@@ -7,7 +7,7 @@ export function PreviewBanner() {
   if (!isPreview) return null;
 
   return (
-    <div className="bg-brass text-white text-center text-xs font-mono uppercase tracking-wide py-1.5">
+    <div className="banner-warm text-center text-xs font-mono uppercase tracking-wide py-1.5">
       Preview mode · sample data, nothing is saved
     </div>
   );
