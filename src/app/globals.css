@@ -1,32 +1,159 @@
 @import "tailwindcss";
 
-:root {
-  --color-stone: #f7f7f5;
-  --color-surface: #ffffff;
-  --color-ink: #14151a;
-  --color-ink-soft: #6b6f76;
-  --color-border: #e6e6e2;
-  --color-indigo: #5b5bf0;
-  --color-indigo-soft: #ecebff;
-  --color-brass: #f5a524;
-  --color-brass-soft: #fff4e0;
-  --color-rose: #f0475b;
-  --color-rose-soft: #fde8ea;
+/*
+ * THEMES
+ * Every color, font, corner radius, border and shadow in the app comes from
+ * the tokens below. The active theme is the data-theme attribute on <html>
+ * (set by the layout and by src/lib/theme.tsx); the list of themes the
+ * picker offers is src/lib/themes.ts.
+ *
+ * Token names are historical: "indigo" is the PRIMARY ACCENT of whichever
+ * theme is active (green in Chamber, violet in Midnight, blue in Pop),
+ * "brass" is the warm/"maybe" accent, and "rose" is the "no"/danger color.
+ *
+ * To add a theme: add a [data-theme="..."] block with every token below,
+ * and an entry in src/lib/themes.ts.
+ */
 
-  /*
-   * System-stack fallbacks so the build never depends on fetching
-   * Google Fonts. Display text leans on weight + tight tracking rather
-   * than a display serif for a more confident, product-modern feel.
-   * Swap in real font files under public/fonts/ later if desired -
-   * these three variable names are the only thing that needs to stay.
-   */
-  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter,
+/* ---------- Chamber (default) ---------- */
+:root,
+[data-theme="chamber"] {
+  color-scheme: light;
+
+  --color-stone: #f6f8f7;
+  --color-surface: #ffffff;
+  --color-ink: #0e3b2e;
+  --color-ink-soft: #4a5a53;
+  --color-border: #dde3df;
+  --color-indigo: #1b6b50;
+  --color-indigo-soft: #e4efe9;
+  --color-brass: #7a5718;
+  --color-brass-soft: #f3e7cc;
+  --color-on-brass: #ffffff;
+  --color-rose: #8f2d2d;
+  --color-rose-soft: #f7e4e4;
+
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-body: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
-    sans-serif;
-  --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --font-mono: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+
+  --radius-card: 18px;
+  --radius-btn: 999px;
+  --card-bw: 1px;
+  --card-shadow: 0 1px 2px rgba(14, 59, 46, 0.06), 0 8px 24px rgba(14, 59, 46, 0.06);
+  --btn-bw: 0px;
+  --btn-border: transparent;
+  --btn-shadow: none;
+  --btn-primary-bg: #0e3b2e;
+  --btn-primary-fg: #ffffff;
+  --nav-bw: 1px;
+
+  --hero-bg: #0e3b2e;
+  --hero-fg: #f6f8f7;
+  --hero-muted: #e3b964;
+  --hero-pad-bottom: 5.25rem;
+  --hero-overlap: 3.25rem;
+
+  --seal-bg-l: 92%;
+  --seal-fg-l: 30%;
+  --seal-ring-l: 78%;
 }
 
+/* ---------- Midnight ---------- */
+[data-theme="midnight"] {
+  color-scheme: dark;
+
+  --color-stone: #0b0d14;
+  --color-surface: #141826;
+  --color-ink: #f2f3f8;
+  --color-ink-soft: #a9aec2;
+  --color-border: #262b40;
+  --color-indigo: #9d8fff;
+  --color-indigo-soft: #25234f;
+  --color-brass: #ffc857;
+  --color-brass-soft: #3a2f12;
+  --color-on-brass: #1a1300;
+  --color-rose: #ff7a8a;
+  --color-rose-soft: #3e1a22;
+
+  --font-display: "Space Grotesk Variable", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-body: "Space Grotesk Variable", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-card: 22px;
+  --radius-btn: 14px;
+  --card-bw: 1px;
+  --card-shadow: none;
+  --btn-bw: 0px;
+  --btn-border: transparent;
+  --btn-shadow: none;
+  --btn-primary-bg: #6a5bf0;
+  --btn-primary-fg: #ffffff;
+  --nav-bw: 1px;
+
+  --hero-bg: transparent;
+  --hero-fg: #f2f3f8;
+  --hero-muted: #a9aec2;
+  --hero-pad-bottom: 1.5rem;
+  --hero-overlap: 0px;
+
+  --seal-bg-l: 24%;
+  --seal-fg-l: 82%;
+  --seal-ring-l: 38%;
+}
+
+/* ---------- Pop ---------- */
+[data-theme="pop"] {
+  color-scheme: light;
+
+  --color-stone: #f4f1ff;
+  --color-surface: #ffffff;
+  --color-ink: #111111;
+  --color-ink-soft: #444444;
+  --color-border: #111111;
+  --color-indigo: #2f46e6;
+  --color-indigo-soft: #e3e8ff;
+  --color-brass: #8a5a00;
+  --color-brass-soft: #ffe7a0;
+  --color-on-brass: #ffffff;
+  --color-rose: #c41e3a;
+  --color-rose-soft: #ffd9de;
+
+  --font-display: "Bricolage Grotesque Variable", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Bricolage Grotesque Variable", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Bricolage Grotesque Variable", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --radius-card: 20px;
+  --radius-btn: 14px;
+  --card-bw: 2.5px;
+  --card-shadow: 5px 5px 0 #111111;
+  --btn-bw: 2.5px;
+  --btn-border: #111111;
+  --btn-shadow: 3px 3px 0 #111111;
+  --btn-primary-bg: #3d5afe;
+  --btn-primary-fg: #ffffff;
+  --nav-bw: 2.5px;
+
+  --hero-bg: transparent;
+  --hero-fg: #111111;
+  --hero-muted: #444444;
+  --hero-pad-bottom: 1.5rem;
+  --hero-overlap: 0px;
+
+  --seal-bg-l: 88%;
+  --seal-fg-l: 18%;
+  --seal-ring-l: 12%;
+}
+
+/* Lets Tailwind utilities (bg-stone, text-indigo, font-display, ...) read
+   the tokens above, so they follow whichever theme is active. */
 @theme inline {
   --color-stone: var(--color-stone);
   --color-surface: var(--color-surface);
@@ -70,21 +197,74 @@ body {
   outline-offset: 2px;
 }
 
-/* Signature primary action style: a vivid indigo-to-violet gradient,
-   used for the one clear call-to-action per screen. */
+/* ---------- Shared shapes (used by src/components/ui/*) ---------- */
+.ui-card {
+  background: var(--color-surface);
+  border: var(--card-bw) solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+}
+
+.ui-btn {
+  border-radius: var(--radius-btn);
+}
+
 .btn-primary {
-  background: linear-gradient(135deg, #5b5bf0, #8b5cf6);
-  color: #ffffff;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: var(--btn-bw) solid var(--btn-border);
+  box-shadow: var(--btn-shadow);
+  transition: opacity 0.15s ease;
 }
 .btn-primary:hover:not(:disabled) {
   opacity: 0.92;
 }
-.btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
-}
 .btn-primary:disabled {
   opacity: 0.4;
+}
+
+.ui-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: max(var(--btn-bw), 1px) solid var(--color-border);
+  box-shadow: var(--btn-shadow);
+}
+.ui-btn-secondary:hover {
+  border-color: var(--color-indigo);
+  color: var(--color-indigo);
+}
+
+.ui-btn-destructive {
+  background: transparent;
+  color: var(--color-rose);
+  border: max(var(--btn-bw), 1px) solid var(--color-rose);
+}
+.ui-btn-destructive:hover {
+  background: var(--color-rose-soft);
+}
+
+.ui-btn-ghost {
+  color: var(--color-ink-soft);
+}
+.ui-btn-ghost:hover {
+  color: var(--color-ink);
+}
+
+/* Header band at the top of the main tabs. Solid in Chamber, invisible
+   (just a plain header) in the other themes. */
+.hero {
+  background: var(--hero-bg);
+  color: var(--hero-fg);
+  padding: 2.5rem 1.5rem var(--hero-pad-bottom);
+}
+.hero-eyebrow {
+  color: var(--hero-muted);
+}
+
+/* Preview-mode banner and similar warm callouts. */
+.banner-warm {
+  background: var(--color-brass);
+  color: var(--color-on-brass);
 }
 
 @media (prefers-reduced-motion: reduce) {
