@@ -1,5 +1,14 @@
-import type { Council, CouncilRequest, User, Vote, VoteChoice } from "@/types";
 import type {
+  Council,
+  CouncilInvitation,
+  CouncilRequest,
+  InvitePreview,
+  User,
+  Vote,
+  VoteChoice,
+} from "@/types";
+import type {
+  CircleRepository,
   CouncilRepository,
   RequestRepository,
   UserRepository,
@@ -16,6 +25,7 @@ const users: User[] = [
   { id: "preview-sarah", name: "Sarah", hue: hueFromId("preview-sarah") },
   { id: "preview-alex", name: "Alex", hue: hueFromId("preview-alex") },
   { id: "preview-james", name: "James", hue: hueFromId("preview-james") },
+  { id: "preview-mike", name: "Mike", hue: hueFromId("preview-mike") },
 ];
 
 const councils: Council[] = [
@@ -37,7 +47,32 @@ const councils: Council[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
     isSupreme: false,
   },
+  {
+    id: "preview-council-travel",
+    name: "Travel Council",
+    description: "Where to go next, and with whom.",
+    ownerId: "preview-mike",
+    memberIds: ["preview-mike"],
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+    isSupreme: false,
+  },
 ];
+
+// Sample Circle + a pending invitation, so the new screens have something
+// to show. Everything here resets on reload, like the rest of preview mode.
+let circleIds: string[] = ["preview-sarah", "preview-alex", "preview-james", "preview-mike"];
+let invitations: CouncilInvitation[] = [
+  {
+    id: "preview-inv-1",
+    councilId: "preview-council-travel",
+    councilName: "Travel Council",
+    inviterId: "preview-mike",
+    inviterName: "Mike",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+  },
+];
+const pendingInvitees: Record<string, string[]> = {};
+let inviteCounter = 0;
 
 const requests: CouncilRequest[] = [
   {
@@ -97,40 +132,90 @@ export const userRepository: UserRepository = {
 
 export const councilRepository: CouncilRepository = {
   async list() {
-    return [...councils].sort((a, b) =>
-      a.isSupreme === b.isSupreme ? 0 : a.isSupreme ? -1 : 1
-    );
+    return councils
+      .filter((c) => c.memberIds.includes(PREVIEW_USER_ID))
+      .sort((a, b) => (a.isSupreme === b.isSupreme ? 0 : a.isSupreme ? -1 : 1));
   },
   async listForUser(userId) {
-    return councils.filter((c) => c.memberIds.includes(userId));
+    return councils
+      .filter((c) => c.memberIds.includes(userId))
+      .sort((a, b) => (a.isSupreme === b.isSupreme ? 0 : a.isSupreme ? -1 : 1));
   },
   async get(id) {
     return councils.find((c) => c.id === id);
   },
-  async create({ name, description, ownerId, memberIds }) {
+  async create({ name, description }) {
     const council: Council = {
       id: `preview-council-${Date.now()}`,
       name,
       description,
-      ownerId,
-      memberIds: Array.from(new Set([ownerId, ...memberIds])),
+      ownerId: PREVIEW_USER_ID,
+      memberIds: [PREVIEW_USER_ID],
       createdAt: new Date().toISOString(),
       isSupreme: false,
     };
     councils.push(council);
     return council;
   },
-  async addMember(councilId, userId) {
-    const council = councils.find((c) => c.id === councilId);
-    if (council && !council.memberIds.includes(userId)) {
-      council.memberIds.push(userId);
-    }
-    return council;
-  },
   async rename(councilId, name) {
     const council = councils.find((c) => c.id === councilId);
     if (council) council.name = name;
     return council;
+  },
+  async inviteMember(councilId, userId) {
+    const list = (pendingInvitees[councilId] ??= []);
+    if (!list.includes(userId)) list.push(userId);
+  },
+  async listPendingInvitees(councilId) {
+    return pendingInvitees[councilId] ?? [];
+  },
+  async listMyInvitations() {
+    return invitations;
+  },
+  async respondToInvitation(invitationId, accept) {
+    const inv = invitations.find((i) => i.id === invitationId);
+    if (!inv) return;
+    if (accept) {
+      const council = councils.find((c) => c.id === inv.councilId);
+      if (council && !council.memberIds.includes(PREVIEW_USER_ID)) {
+        council.memberIds.push(PREVIEW_USER_ID);
+      }
+    }
+    invitations = invitations.filter((i) => i.id !== invitationId);
+  },
+  async leave(councilId) {
+    const council = councils.find((c) => c.id === councilId);
+    if (council) {
+      council.memberIds = council.memberIds.filter((id) => id !== PREVIEW_USER_ID);
+    }
+  },
+};
+
+export const circleRepository: CircleRepository = {
+  async listMembers() {
+    return users.filter((u) => circleIds.includes(u.id));
+  },
+  async createInvite() {
+    inviteCounter += 1;
+    return `PREVIEW-${inviteCounter}`;
+  },
+  async previewInvite(code): Promise<InvitePreview> {
+    if (code.startsWith("PREVIEW")) {
+      return { status: "ok", inviterName: "Jordan" };
+    }
+    return { status: "invalid" };
+  },
+  async redeemInvite() {
+    return {};
+  },
+  async remove(userId) {
+    circleIds = circleIds.filter((id) => id !== userId);
+    for (const c of councils) {
+      if (c.ownerId === PREVIEW_USER_ID) {
+        c.memberIds = c.memberIds.filter((id) => id !== userId);
+      }
+    }
+    invitations = invitations.filter((i) => i.inviterId !== userId);
   },
 };
 

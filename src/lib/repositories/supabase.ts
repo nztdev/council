@@ -1,7 +1,19 @@
 import { supabase } from "@/lib/supabase";
 import { hueFromId } from "@/lib/hue";
-import type { CloseRule, Council, CouncilRequest, Vote, VoteChoice } from "@/types";
+import { friendlyError } from "@/lib/errors";
 import type {
+  CloseRule,
+  Council,
+  CouncilInvitation,
+  CouncilRequest,
+  InvitePreview,
+  InviteStatus,
+  User,
+  Vote,
+  VoteChoice,
+} from "@/types";
+import type {
+  CircleRepository,
   CouncilRepository,
   RequestRepository,
   UserRepository,
@@ -48,6 +60,19 @@ function mapVote(row: {
     comment: row.comment ?? undefined,
     createdAt: row.created_at,
   };
+}
+
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+/** Display names for the given user ids (only those the caller may see). */
+async function namesFor(ids: string[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("id, name").in("id", unique);
+  return new Map((data ?? []).map((p) => [p.id, p.name]));
 }
 
 export const userRepository: UserRepository = {
@@ -138,27 +163,65 @@ export const councilRepository: CouncilRepository = {
     if (!data) return undefined;
     return mapCouncil(data, await memberIdsFor(data.id));
   },
-  async create({ name, description, ownerId, memberIds }) {
-    const { data, error } = await supabase
-      .from("councils")
-      .insert({ name, description, owner_id: ownerId, is_supreme: false })
-      .select()
-      .single();
-    if (error || !data) throw new Error(error?.message ?? "Failed to create council");
-
-    const allMemberIds = Array.from(new Set([ownerId, ...memberIds]));
-    const { error: memberError } = await supabase
-      .from("council_members")
-      .insert(allMemberIds.map((userId) => ({ council_id: data.id, user_id: userId })));
-    if (memberError) throw new Error(memberError.message);
-
-    return mapCouncil(data, allMemberIds);
+  async create({ name, description }) {
+    // One atomic database function creates the council and adds you as its
+    // first member (see create_council in supabase/schema.sql).
+    const { data, error } = await supabase.rpc("create_council", {
+      p_name: name,
+      p_description: description,
+    });
+    if (error || !data) throw new Error(friendlyError(error));
+    const created = await councilRepository.get(data as string);
+    if (!created) throw new Error("The council was created but couldn't be loaded.");
+    return created;
   },
-  async addMember(councilId, userId) {
-    await supabase
-      .from("council_members")
-      .insert({ council_id: councilId, user_id: userId });
-    return councilRepository.get(councilId);
+  async inviteMember(councilId, userId) {
+    const { error } = await supabase.rpc("invite_to_council", {
+      p_council_id: councilId,
+      p_user_id: userId,
+    });
+    if (error) throw new Error(friendlyError(error));
+  },
+  async listPendingInvitees(councilId) {
+    const { data, error } = await supabase
+      .from("council_invitations")
+      .select("invited_user")
+      .eq("council_id", councilId);
+    if (error) throw new Error(friendlyError(error));
+    return (data ?? []).map((r) => r.invited_user);
+  },
+  async listMyInvitations() {
+    const me = await currentUserId();
+    if (!me) return [];
+    const { data, error } = await supabase
+      .from("council_invitations")
+      .select("id, council_id, council_name, invited_by, created_at")
+      .eq("invited_user", me)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(friendlyError(error));
+    const rows = data ?? [];
+    const names = await namesFor(rows.map((r) => r.invited_by));
+    return rows.map(
+      (r): CouncilInvitation => ({
+        id: r.id,
+        councilId: r.council_id,
+        councilName: r.council_name,
+        inviterId: r.invited_by,
+        inviterName: names.get(r.invited_by) ?? "Someone",
+        createdAt: r.created_at,
+      })
+    );
+  },
+  async respondToInvitation(invitationId, accept) {
+    const { error } = await supabase.rpc("respond_to_council_invitation", {
+      p_invitation_id: invitationId,
+      p_accept: accept,
+    });
+    if (error) throw new Error(friendlyError(error));
+  },
+  async leave(councilId) {
+    const { error } = await supabase.rpc("leave_council", { p_council_id: councilId });
+    if (error) throw new Error(friendlyError(error));
   },
   async rename(councilId, name) {
     // is_supreme councils can be renamed - only deletion is blocked (and
@@ -286,5 +349,54 @@ export const voteRepository: VoteRepository = {
       .single();
     if (error || !data) throw new Error(error?.message ?? "Failed to cast vote");
     return mapVote(data);
+  },
+};
+
+export const circleRepository: CircleRepository = {
+  async listMembers() {
+    const me = await currentUserId();
+    if (!me) return [];
+    const { data, error } = await supabase.from("circle_links").select("user_a, user_b");
+    if (error) throw new Error(friendlyError(error));
+    const otherIds = (data ?? []).map((l) => (l.user_a === me ? l.user_b : l.user_a));
+    if (otherIds.length === 0) return [];
+    const { data: profiles, error: pError } = await supabase
+      .from("profiles")
+      .select("id, name")
+      .in("id", otherIds);
+    if (pError) throw new Error(friendlyError(pError));
+    return (profiles ?? [])
+      .map((p): User => ({ id: p.id, name: p.name, hue: hueFromId(p.id) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+  async createInvite(opts) {
+    const { data, error } = await supabase.rpc("create_invite", {
+      p_council_id: opts?.councilId ?? null,
+    });
+    if (error || !data) throw new Error(friendlyError(error));
+    return data as string;
+  },
+  async previewInvite(code) {
+    const { data, error } = await supabase.rpc("preview_invite", { p_code: code });
+    if (error) throw new Error(friendlyError(error));
+    const row = (data ?? [])[0] as
+      | { status: string; inviter_name: string | null; council_name: string | null }
+      | undefined;
+    if (!row) return { status: "invalid" };
+    return {
+      status: row.status as InviteStatus,
+      inviterName: row.inviter_name ?? undefined,
+      councilName: row.council_name ?? undefined,
+    } satisfies InvitePreview;
+  },
+  async redeemInvite(code) {
+    const { data, error } = await supabase.rpc("redeem_invite", { p_code: code });
+    if (error) throw new Error(friendlyError(error));
+    const result = data as { council_id: string | null } | null;
+    return { councilId: result?.council_id ?? undefined };
+  },
+  async remove(userId) {
+    const { error } = await supabase.rpc("remove_from_circle", { p_user_id: userId });
+    if (error) throw new Error(friendlyError(error));
   },
 };

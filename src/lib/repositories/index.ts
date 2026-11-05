@@ -14,6 +14,7 @@ import { isPreviewMode } from "@/lib/preview";
 import * as live from "./supabase";
 import * as preview from "./mock";
 import type {
+  CircleRepository,
   CouncilRepository,
   RequestRepository,
   UserRepository,
@@ -34,9 +35,28 @@ export const councilRepository: CouncilRepository = {
   get: (...args) => (isPreviewMode() ? preview : live).councilRepository.get(...args),
   create: (...args) =>
     (isPreviewMode() ? preview : live).councilRepository.create(...args),
-  addMember: (...args) =>
-    (isPreviewMode() ? preview : live).councilRepository.addMember(...args),
   rename: (...args) => (isPreviewMode() ? preview : live).councilRepository.rename(...args),
+  inviteMember: (...args) =>
+    (isPreviewMode() ? preview : live).councilRepository.inviteMember(...args),
+  listPendingInvitees: (...args) =>
+    (isPreviewMode() ? preview : live).councilRepository.listPendingInvitees(...args),
+  listMyInvitations: (...args) =>
+    (isPreviewMode() ? preview : live).councilRepository.listMyInvitations(...args),
+  respondToInvitation: (...args) =>
+    (isPreviewMode() ? preview : live).councilRepository.respondToInvitation(...args),
+  leave: (...args) => (isPreviewMode() ? preview : live).councilRepository.leave(...args),
+};
+
+export const circleRepository: CircleRepository = {
+  listMembers: (...args) =>
+    (isPreviewMode() ? preview : live).circleRepository.listMembers(...args),
+  createInvite: (...args) =>
+    (isPreviewMode() ? preview : live).circleRepository.createInvite(...args),
+  previewInvite: (...args) =>
+    (isPreviewMode() ? preview : live).circleRepository.previewInvite(...args),
+  redeemInvite: (...args) =>
+    (isPreviewMode() ? preview : live).circleRepository.redeemInvite(...args),
+  remove: (...args) => (isPreviewMode() ? preview : live).circleRepository.remove(...args),
 };
 
 export const requestRepository: RequestRepository = {

@@ -6,9 +6,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Users, CheckCircle2 } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
+import { InviteLinkCard } from "@/components/invite-link-card";
 import { Button, Card } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { councilRepository, userRepository } from "@/lib/repositories";
+import { afterAuthPath } from "@/lib/pending-invite";
+import { CIRCLE } from "@/lib/copy";
+import {
+  circleRepository,
+  councilRepository,
+  userRepository,
+} from "@/lib/repositories";
 import type { Council, User } from "@/types";
 
 const TOTAL_STEPS = 3;
@@ -18,17 +25,17 @@ function OnboardingContent() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [supremeCouncil, setSupremeCouncil] = useState<Council | null>(null);
-  const [otherUsers, setOtherUsers] = useState<User[]>([]);
+  const [circleMembers, setCircleMembers] = useState<User[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const councils = await councilRepository.listForUser(user.id);
       setSupremeCouncil(councils.find((c) => c.isSupreme) ?? null);
-      const all = await userRepository.list();
-      setOtherUsers(all.filter((u) => u.id !== user.id));
+      setCircleMembers(await circleRepository.listMembers());
     })();
   }, [user]);
 
@@ -38,15 +45,18 @@ function OnboardingContent() {
     );
   }
 
-  async function goToStep2() {
-    setStep(1);
-  }
-
-  async function addMembersAndContinue() {
-    if (supremeCouncil) {
+  async function inviteAndContinue() {
+    setError(null);
+    if (supremeCouncil && selected.length > 0) {
       setBusy(true);
-      for (const id of selected) {
-        await councilRepository.addMember(supremeCouncil.id, id);
+      try {
+        for (const id of selected) {
+          await councilRepository.inviteMember(supremeCouncil.id, id);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn't send the invitations.");
+        setBusy(false);
+        return;
       }
       setBusy(false);
     }
@@ -58,7 +68,8 @@ function OnboardingContent() {
     setBusy(true);
     await userRepository.completeOnboarding(user.id);
     await refreshProfile();
-    router.replace("/queue");
+    // If they arrived through an invite link, take them back to it.
+    router.replace(afterAuthPath());
   }
 
   return (
@@ -95,7 +106,7 @@ function OnboardingContent() {
               like, for anything more specific.
             </p>
             <div className="flex-1" />
-            <Button onClick={goToStep2}>Continue</Button>
+            <Button onClick={() => setStep(1)}>Continue</Button>
           </motion.div>
         )}
 
@@ -114,40 +125,50 @@ function OnboardingContent() {
               Who belongs here?
             </h1>
             <p className="text-ink-soft mb-6 leading-relaxed">
-              Add anyone already on Council whose judgement you trust
-              broadly. You can always add more later.
+              Nobody can see you, or be added to a council, without agreeing.
+              Send someone an invite link; when they open it, they join your
+              Supreme Council and your {CIRCLE}.
             </p>
 
-            {otherUsers.length === 0 ? (
-              <p className="text-sm text-ink-soft mb-6">
-                No one else has signed up yet - you can add people here
-                once they have.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2 mb-6">
-                {otherUsers.map((u) => {
-                  const active = selected.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      onClick={() => toggle(u.id)}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                        active
-                          ? "border-indigo bg-indigo-soft text-indigo"
-                          : "border-border text-ink-soft"
-                      }`}
-                    >
-                      <Seal user={u} size="sm" />
-                      {u.name}
-                    </button>
-                  );
-                })}
+            <InviteLinkCard
+              key={supremeCouncil?.id ?? "none"}
+              councilId={supremeCouncil?.id}
+              title="Invite your first person"
+              description="Someone whose judgement you trust broadly."
+            />
+
+            {circleMembers.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm text-ink-soft mb-3">
+                  Or invite someone already in your {CIRCLE}:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {circleMembers.map((u) => {
+                    const active = selected.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => toggle(u.id)}
+                        className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                          active
+                            ? "border-indigo bg-indigo-soft text-indigo"
+                            : "border-border text-ink-soft"
+                        }`}
+                      >
+                        <Seal user={u} size="sm" />
+                        {u.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
+            {error && <p className="text-sm text-rose mb-4">{error}</p>}
+
             <div className="flex-1" />
-            <Button onClick={addMembersAndContinue} disabled={busy}>
-              {selected.length > 0 ? `Add ${selected.length} and continue` : "Continue"}
+            <Button onClick={inviteAndContinue} disabled={busy}>
+              {selected.length > 0 ? `Invite ${selected.length} and continue` : "Continue"}
             </Button>
           </motion.div>
         )}
@@ -169,7 +190,7 @@ function OnboardingContent() {
             <p className="text-ink-soft mb-8 leading-relaxed">
               Your Supreme Council is ready. Post a question anytime, or
               create a more specific council for a particular part of your
-              life.
+              life. You can invite more people from the {CIRCLE} tab.
             </p>
             {supremeCouncil && (
               <Card className="p-4 mb-6">

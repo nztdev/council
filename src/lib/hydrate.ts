@@ -14,8 +14,15 @@ export async function hydrateRequest(
     userRepository.get(request.authorId),
     voteRepository.listForRequest(request.id),
   ]);
-  if (!council || !author) return null;
-  return { ...request, council, author, votes };
+    if (!council) return null;
+  // The author may no longer be visible to us (e.g. removed from our
+  // Circle). Show their question anyway, under a neutral name.
+  const shownAuthor = author ?? {
+    id: request.authorId,
+    name: "Former member",
+    hue: 0,
+  };
+  return { ...request, council, author: shownAuthor, votes };
 }
 
 export async function hydrateRequests(

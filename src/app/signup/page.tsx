@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { afterAuthPath } from "@/lib/pending-invite";
 import { Button, Input, Label } from "@/components/ui";
 
 export default function SignUpPage() {
@@ -27,7 +28,7 @@ export default function SignUpPage() {
     }
     // A brand-new account has no onboardedAt yet, so RequireAuth on
     // /queue will redirect straight into /onboarding automatically.
-    router.replace("/queue");
+    router.replace(afterAuthPath());
   }
 
   return (

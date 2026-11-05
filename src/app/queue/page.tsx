@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Inbox } from "lucide-react";
+import Link from "next/link";
+import { Inbox, Mail } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { QueueCard } from "@/components/queue-card";
 import { EmptyState } from "@/components/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { useAuth } from "@/lib/auth";
-import { requestRepository } from "@/lib/repositories";
+import { councilRepository, requestRepository } from "@/lib/repositories";
 import { hydrateRequests } from "@/lib/hydrate";
 import type { RequestWithMeta } from "@/types";
 
@@ -23,12 +24,18 @@ function QueueContent() {
   const { profile: user } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<RequestWithMeta[] | null>(null);
+  const [inviteCount, setInviteCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const pending = await requestRepository.listPendingForUser(user.id);
       setItems(await hydrateRequests(pending));
+      try {
+        setInviteCount((await councilRepository.listMyInvitations()).length);
+      } catch {
+        // the banner is a nicety - never block the queue on it
+      }
     })();
   }, [user]);
 
@@ -78,6 +85,21 @@ function QueueContent() {
             />
           ))}
         </div>
+
+        {inviteCount > 0 && (
+          <Link
+            href="/circle/"
+            className="ui-card mt-6 flex items-center gap-3 p-4 hover:border-indigo transition-colors"
+          >
+            <Mail className="text-indigo shrink-0" size={20} />
+            <span className="text-sm">
+              <span className="font-medium">
+                {inviteCount} council {inviteCount === 1 ? "invitation" : "invitations"}
+              </span>{" "}
+              waiting for you
+            </span>
+          </Link>
+        )}
       </div>
     </div>
   );

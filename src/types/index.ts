@@ -56,3 +56,30 @@ export interface RequestWithMeta extends CouncilRequest {
   author: User;
   votes: Vote[];
 }
+
+/** A council owner's pending invitation to someone in their Circle. */
+export interface CouncilInvitation {
+  id: string;
+  councilId: string;
+  councilName: string;
+  inviterId: string;
+  inviterName: string;
+  createdAt: string;
+}
+
+/** What opening an invite link would do (see preview_invite in schema.sql). */
+export type InviteStatus =
+  | "ok"
+  | "already"
+  | "invalid"
+  | "own"
+  | "revoked"
+  | "expired"
+  | "used";
+
+export interface InvitePreview {
+  status: InviteStatus;
+  inviterName?: string;
+  /** set when the link also adds you to a specific council */
+  councilName?: string;
+}

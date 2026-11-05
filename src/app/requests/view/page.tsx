@@ -190,7 +190,7 @@ function VoteRow({ vote }: { vote: Vote }) {
   useEffect(() => {
     import("@/lib/repositories").then(({ userRepository }) => {
       userRepository.get(vote.userId).then((u) => {
-        if (u) setName(u.name);
+        setName(u ? u.name : "Former member");
       });
     });
   }, [vote.userId]);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { afterAuthPath } from "@/lib/pending-invite";
 import { enterPreviewMode } from "@/lib/preview";
 import { basePath } from "@/lib/base-path";
 import { Button, Input, Label } from "@/components/ui";
@@ -27,7 +28,7 @@ export default function SignInPage() {
       setError(error);
       return;
     }
-    router.replace("/queue");
+    router.replace(afterAuthPath());
   }
 
   function previewDesign() {

@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Crown, Plus, Users2 } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
 import { useAuth } from "@/lib/auth";
-import { councilRepository, userRepository } from "@/lib/repositories";
+import {
+  circleRepository,
+  councilRepository,
+  userRepository,
+} from "@/lib/repositories";
+import { CIRCLE } from "@/lib/copy";
 import { Button, Card, Badge, Input, Label, EmptyState } from "@/components/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import type { Council, User } from "@/types";
@@ -14,11 +20,14 @@ import type { Council, User } from "@/types";
 function CouncilsContent() {
   const { profile: user } = useAuth();
   const [councils, setCouncils] = useState<Council[] | null>(null);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [people, setPeople] = useState<User[]>([]);
+  const [circleMembers, setCircleMembers] = useState<User[]>([]);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [inviteIds, setInviteIds] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   async function refresh() {
     if (!user) return;
@@ -29,31 +38,40 @@ function CouncilsContent() {
     if (!user) return;
     (async () => {
       await refresh();
-      const u = await userRepository.list();
-      setAllUsers(u.filter((x) => x.id !== user.id));
+      setPeople(await userRepository.list());
+      setCircleMembers(await circleRepository.listMembers());
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  function toggleMember(id: string) {
-    setMemberIds((prev) =>
+  function toggleInvite(id: string) {
+    setInviteIds((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
   }
 
   async function submit() {
     if (!user || !name.trim()) return;
-    await councilRepository.create({
-      name: name.trim(),
-      description: description.trim(),
-      ownerId: user.id,
-      memberIds,
-    });
-    setName("");
-    setDescription("");
-    setMemberIds([]);
-    setCreating(false);
-    refresh();
+    setSaving(true);
+    setError(null);
+    try {
+      const council = await councilRepository.create({
+        name: name.trim(),
+        description: description.trim(),
+      });
+      for (const id of inviteIds) {
+        await councilRepository.inviteMember(council.id, id);
+      }
+      setName("");
+      setDescription("");
+      setInviteIds([]);
+      setCreating(false);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't create the council.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -72,93 +90,108 @@ function CouncilsContent() {
         }
       />
       <div className="max-w-md w-full mx-auto px-6 pt-6 flex-1 flex flex-col">
-
-      {creating && (
-        <Card className="p-5 mb-8 flex flex-col gap-4">
-          <div>
-            <Label>Name</Label>
-            <div className="mt-1">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Business Council"
-                className="bg-stone"
-              />
-            </div>
-          </div>
-          <div>
-            <Label>Description</Label>
-            <div className="mt-1">
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="People whose business judgement I trust."
-                className="bg-stone"
-              />
-            </div>
-          </div>
-          <div>
-            <Label>Invite</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {allUsers.map((u) => {
-                const active = memberIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    onClick={() => toggleMember(u.id)}
-                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "border-indigo bg-indigo-soft text-indigo"
-                        : "border-border text-ink-soft"
-                    }`}
-                  >
-                    <Seal user={u} size="sm" />
-                    {u.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <Button onClick={submit} disabled={!name.trim()} className="w-full">
-            Create council
-          </Button>
-        </Card>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {councils?.map((c, i) => (
-          <motion.div
-            key={c.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-          >
-            <Card href={`/councils/view?id=${c.id}`} className="p-4">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                {c.isSupreme && <Crown className="text-brass shrink-0" size={16} />}
-                <h2 className="font-display font-semibold text-lg">{c.name}</h2>
-                {c.isSupreme && <Badge tone="brass">Supreme</Badge>}
+        {creating && (
+          <Card className="p-5 mb-8 flex flex-col gap-4">
+            <div>
+              <Label>Name</Label>
+              <div className="mt-1">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Business Council"
+                  className="bg-stone"
+                />
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm text-ink-soft flex-1 min-w-0">{c.description}</p>
-                <div className="flex -space-x-2 shrink-0">
-                  {c.memberIds.slice(0, 4).map((id) => {
-                    const u =
-                      allUsers.find((au) => au.id === id) ??
-                      (id === user?.id ? user : undefined);
-                    return u ? <Seal key={id} user={u} size="sm" /> : null;
-                  })}
-                </div>
+            </div>
+            <div>
+              <Label>Description</Label>
+              <div className="mt-1">
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="People whose business judgement I trust."
+                  className="bg-stone"
+                />
               </div>
-            </Card>
-          </motion.div>
-        ))}
-        {councils?.length === 0 && (
-          <EmptyState icon={<Users2 className="text-ink-soft" size={28} />}>
-            No councils yet. Create one to start asking for judgement.
-          </EmptyState>
+            </div>
+            <div>
+              <Label>{`Invite from your ${CIRCLE}`}</Label>
+              {circleMembers.length === 0 ? (
+                <p className="text-sm text-ink-soft mt-2">
+                  Your {CIRCLE} is empty.{" "}
+                  <Link href="/circle/" className="text-indigo font-medium">
+                    Invite someone first
+                  </Link>{" "}
+                  - you can add them to this council afterwards.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-ink-soft mt-1">
+                    They&apos;ll get an invitation they can accept or decline.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {circleMembers.map((u) => {
+                      const active = inviteIds.includes(u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          onClick={() => toggleInvite(u.id)}
+                          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            active
+                              ? "border-indigo bg-indigo-soft text-indigo"
+                              : "border-border text-ink-soft"
+                          }`}
+                        >
+                          <Seal user={u} size="sm" />
+                          {u.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+            {error && <p className="text-sm text-rose">{error}</p>}
+            <Button onClick={submit} disabled={!name.trim() || saving} className="w-full">
+              Create council
+            </Button>
+          </Card>
         )}
-      </div>
+
+        <div className="flex flex-col gap-3">
+          {councils?.map((c, i) => (
+            <motion.div
+              key={c.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <Card href={`/councils/view?id=${c.id}`} className="p-4">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  {c.isSupreme && <Crown className="text-brass shrink-0" size={16} />}
+                  <h2 className="font-display font-semibold text-lg">{c.name}</h2>
+                  {c.isSupreme && <Badge tone="brass">Supreme</Badge>}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-ink-soft flex-1 min-w-0">{c.description}</p>
+                  <div className="flex -space-x-2 shrink-0">
+                    {c.memberIds.slice(0, 4).map((id) => {
+                      const u =
+                        people.find((p) => p.id === id) ??
+                        (id === user?.id ? user : undefined);
+                      return u ? <Seal key={id} user={u} size="sm" /> : null;
+                    })}
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+          {councils?.length === 0 && (
+            <EmptyState icon={<Users2 className="text-ink-soft" size={28} />}>
+              No councils yet. Create one to start asking for judgement.
+            </EmptyState>
+          )}
+        </div>
       </div>
     </div>
   );

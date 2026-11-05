@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { ListChecks, Users, CircleUser } from "lucide-react";
+import { ListChecks, Users, CircleDot, CircleUser } from "lucide-react";
+import { CIRCLE } from "@/lib/copy";
 import { useAuth } from "@/lib/auth";
 
 const tabs = [
   { href: "/queue", label: "Queue", icon: ListChecks },
   { href: "/councils", label: "Councils", icon: Users },
+  { href: "/circle", label: CIRCLE, icon: CircleDot },
   { href: "/profile", label: "Profile", icon: CircleUser },
 ];
 
