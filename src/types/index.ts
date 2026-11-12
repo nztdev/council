@@ -32,7 +32,6 @@ export interface Council {
   isSupreme: boolean;
   askPolicy: AskPolicy;
 }
-}
 
 export interface CouncilRequest {
   id: string;
@@ -77,7 +76,6 @@ export interface CouncilInvitation {
   askPolicy: AskPolicy;
   createdAt: string;
 }
-}
 
 /** What opening an invite link would do (see preview_invite in schema.sql). */
 export type InviteStatus =
@@ -95,5 +93,4 @@ export interface InvitePreview {
     /** set when the link also adds you to a specific council */
   councilName?: string;
   askPolicy?: AskPolicy;
-}
 }
