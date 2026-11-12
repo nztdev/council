@@ -14,11 +14,18 @@ const MESSAGES: Record<string, string> = {
   too_many_invites:
     "You have a lot of unused invite links. Use or let some expire first.",
   name_required: "Please give it a name.",
+  bad_ask_policy: "Please choose who can ask questions.",
   not_signed_in: "Please sign in again.",
   invitation_not_found: "That invitation is no longer available.",
 };
 
 export function friendlyError(error: { message?: string } | null | undefined): string {
   const raw = error?.message ?? "";
+  if (raw.includes("supreme_council_owner_asks_only")) {
+    return "A Supreme Council is always \"only you can ask\".";
+  }
+  if (raw.includes("row-level security") && raw.includes("requests")) {
+    return "Only the owner of this council can ask questions in it.";
+  }
   return MESSAGES[raw] ?? (raw || "Something went wrong. Please try again.");
 }

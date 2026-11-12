@@ -120,8 +120,13 @@ function SignedInJoin({ code }: { code: string }) {
         {preview?.councilName ? (
           <>
             {" "}
-            and adds you to the council <span className="font-medium">{preview.councilName}</span>,
-            where members can see each other&apos;s questions and votes
+            and adds you to the council <span className="font-medium">{preview.councilName}</span>
+            {preview.askPolicy === "owner"
+              ? ` as an advisor (only ${preview.inviterName ?? "the owner"} asks questions; you answer them)`
+              : preview.askPolicy === "members"
+                ? " as a member (everyone in it can ask and answer questions)"
+                : ""}
+            , where members can see each other&apos;s questions and votes
           </>
         ) : null}
         . You can leave or remove them any time.

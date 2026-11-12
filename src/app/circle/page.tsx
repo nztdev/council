@@ -9,6 +9,7 @@ import { Button, Card, EmptyState } from "@/components/ui";
 import { PageHero } from "@/components/ui/PageHero";
 import { circleRepository, councilRepository } from "@/lib/repositories";
 import { YOUR_CIRCLE, CIRCLE } from "@/lib/copy";
+import { firstName } from "@/lib/council-labels";
 import type { CouncilInvitation, User } from "@/types";
 
 function CircleContent() {
@@ -71,10 +72,23 @@ function CircleContent() {
                 <Card key={inv.id} className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <Mail className="text-indigo shrink-0 mt-0.5" size={18} />
-                    <p className="text-sm">
-                      <span className="font-medium">{inv.inviterName}</span> invited you to
-                      join <span className="font-medium">{inv.councilName}</span>.
-                    </p>
+                    <div className="text-sm">
+                      <p>
+                        <span className="font-medium">{inv.inviterName}</span> invited you
+                        to join{" "}
+                        <span className="font-medium">
+                          {inv.isSupreme
+                            ? `${firstName(inv.inviterName)}'s ${inv.councilName}`
+                            : inv.councilName}
+                        </span>
+                        .
+                      </p>
+                      <p className="text-xs text-ink-soft mt-1">
+                        {inv.askPolicy === "owner"
+                          ? `You'd be an advisor: only ${firstName(inv.inviterName)} asks questions here, and you answer them.`
+                          : "You'd be a member: everyone in it can ask and answer questions."}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => respond(inv.id, true)} className="flex-1 py-2">

@@ -1,5 +1,9 @@
 export type VoteChoice = "yes" | "maybe" | "no";
 
+/** Who may post questions in a council: only its owner (everyone else is an
+ * advisor), or any member. A Supreme Council is always "owner". */
+export type AskPolicy = "owner" | "members";
+
 /**
  * How a request decides it's "closed" (no more votes accepted). New
  * rules go in this union plus src/lib/close-rules.ts - nothing else in
@@ -24,8 +28,10 @@ export interface Council {
   ownerId: string;
   memberIds: string[];
   createdAt: string;
-  /** every user's permanent first council - renamable, never deletable */
+    /** every user's permanent first council - renamable, never deletable */
   isSupreme: boolean;
+  askPolicy: AskPolicy;
+}
 }
 
 export interface CouncilRequest {
@@ -53,6 +59,8 @@ export interface Vote {
 
 export interface RequestWithMeta extends CouncilRequest {
   council: Council;
+  /** the council's owner (needed to say whose council this is) */
+  owner: User;
   author: User;
   votes: Vote[];
 }
@@ -64,7 +72,11 @@ export interface CouncilInvitation {
   councilName: string;
   inviterId: string;
   inviterName: string;
+  isSupreme: boolean;
+  /** the role you'd have: advisor ("owner") or member who can ask ("members") */
+  askPolicy: AskPolicy;
   createdAt: string;
+}
 }
 
 /** What opening an invite link would do (see preview_invite in schema.sql). */
@@ -80,6 +92,8 @@ export type InviteStatus =
 export interface InvitePreview {
   status: InviteStatus;
   inviterName?: string;
-  /** set when the link also adds you to a specific council */
+    /** set when the link also adds you to a specific council */
   councilName?: string;
+  askPolicy?: AskPolicy;
+}
 }

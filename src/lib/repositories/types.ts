@@ -1,4 +1,5 @@
 import type {
+  AskPolicy,
   CloseRule,
   Council,
   CouncilInvitation,
@@ -33,8 +34,14 @@ export interface CouncilRepository {
   get(id: string): Promise<Council | undefined>;
   /** Creates a council you own, with you as its first member. Other people
    * join by accepting an invitation (inviteMember) or an invite link. */
-  create(input: { name: string; description: string }): Promise<Council>;
+  create(input: {
+    name: string;
+    description: string;
+    askPolicy: AskPolicy;
+  }): Promise<Council>;
   rename(councilId: string, name: string): Promise<Council | undefined>;
+  /** Who may ask questions. Not allowed for a Supreme Council. */
+  setAskPolicy(councilId: string, askPolicy: AskPolicy): Promise<void>;
   /** Owner invites someone already in their Circle; they accept or decline. */
   inviteMember(councilId: string, userId: string): Promise<void>;
   /** Ids of people the owner has invited who haven't answered yet. */

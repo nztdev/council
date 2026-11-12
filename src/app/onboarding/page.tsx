@@ -101,7 +101,8 @@ function OnboardingContent() {
             <p className="text-ink-soft mb-8 leading-relaxed">
               Every account starts with one permanent council: the people
               whose judgement matters most across everything, not just one
-              area of your life. You can rename it, but it&apos;s always
+              area of your life. You ask the questions; the people you invite
+              advise. You can rename it, but it&apos;s always
               here. You can also create as many other councils as you
               like, for anything more specific.
             </p>

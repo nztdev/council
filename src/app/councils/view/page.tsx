@@ -16,8 +16,20 @@ import {
 import { hydrateRequests, requestRepository } from "@/lib/hydrate";
 import { computeRequestStatus } from "@/lib/close-rules";
 import { CIRCLE } from "@/lib/copy";
+import {
+  ROLE_LABEL,
+  canAskIn,
+  councilLabel,
+  firstName,
+  roleIn,
+} from "@/lib/council-labels";
 import { Button, Card, Badge, Input, EmptyState } from "@/components/ui";
-import type { Council, RequestWithMeta, User } from "@/types";
+import type { AskPolicy, Council, RequestWithMeta, User } from "@/types";
+
+const ASK_OPTIONS: { id: AskPolicy; label: string; description: string }[] = [
+  { id: "owner", label: "Only me", description: "Members advise; only you ask." },
+  { id: "members", label: "Anyone in the council", description: "Every member can ask and answer." },
+];
 
 function CouncilInner() {
   const searchParams = useSearchParams();
@@ -63,6 +75,17 @@ function CouncilInner() {
     refresh();
   }
 
+  async function changeAskPolicy(policy: AskPolicy) {
+    if (!council || council.askPolicy === policy) return;
+    setError(null);
+    try {
+      await councilRepository.setAskPolicy(council.id, policy);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't change that.");
+    }
+  }
+
   async function invite(userId: string) {
     if (!council) return;
     setError(null);
@@ -91,12 +114,16 @@ function CouncilInner() {
 
   if (!council) return null;
 
+  const owner = members.find((m) => m.id === council.ownerId);
+  const ownerFirst = owner ? firstName(owner.name) : "the owner";
+  const role = roleIn(council, me?.id);
+  const canAsk = canAskIn(council, me?.id);
   const invitable = circleMembers.filter((p) => !council.memberIds.includes(p.id));
 
   return (
     <div className="max-w-md w-full mx-auto px-6 pt-10 flex-1 flex flex-col">
       <div className="flex items-center gap-2 mb-1">
-        {council.isSupreme && <Crown className="text-brass shrink-0" size={20} />}
+        {council.isSupreme && isOwner && <Crown className="text-brass shrink-0" size={20} />}
         {editingName ? (
           <div className="flex items-center gap-2 flex-1">
             <Input
@@ -112,7 +139,7 @@ function CouncilInner() {
         ) : (
           <>
             <h1 className="font-display font-semibold tracking-tight text-3xl">
-              {council.name}
+              {councilLabel(council, owner, me?.id)}
             </h1>
             {isOwner && (
               <button
@@ -129,9 +156,19 @@ function CouncilInner() {
           </>
         )}
       </div>
+
+      {!isOwner && (
+        <div className="flex items-center gap-2 mb-2">
+          {owner && <Seal user={owner} size="sm" />}
+          <span className="text-sm text-ink-soft">Owned by {ownerFirst}</span>
+          <Badge tone="neutral">{ROLE_LABEL[role]}</Badge>
+        </div>
+      )}
       {council.isSupreme && (
         <p className="text-xs text-ink-soft mb-2">
-          Your permanent council - always here, can be renamed, never deleted.
+          {isOwner
+            ? "Your permanent council - always here, can be renamed, never deleted. Only you ask questions here; the people you invite advise."
+            : `${ownerFirst}'s permanent council. You advise here: you answer the questions ${ownerFirst} asks.`}
         </p>
       )}
       <p className="text-ink-soft mb-5">{council.description}</p>
@@ -141,18 +178,67 @@ function CouncilInner() {
           <div key={m.id} className="flex items-center gap-2">
             <Seal user={m} size="sm" />
             <span className="text-sm">{m.name}</span>
+            {m.id === council.ownerId && <Badge tone="brass">Owner</Badge>}
           </div>
         ))}
       </div>
 
       {error && <p className="text-sm text-rose mb-4">{error}</p>}
 
-      <Link
-        href={`/councils/new?councilId=${council.id}`}
-        className="ui-btn btn-primary py-3 text-center text-sm font-medium mb-8"
-      >
-        Ask your council
-      </Link>
+      {canAsk ? (
+        <Link
+          href={`/councils/new?councilId=${council.id}`}
+          className="ui-btn btn-primary py-3 text-center text-sm font-medium mb-8"
+        >
+          Ask your council
+        </Link>
+      ) : (
+        <Card className="p-4 mb-8">
+          <p className="text-sm text-ink-soft">
+            Only {ownerFirst} asks questions in this council. You advise by
+            answering them - they&apos;ll show up in your queue.
+          </p>
+        </Card>
+      )}
+
+      {isOwner && (
+        <div className="mb-8">
+          <h2 className="font-mono text-xs uppercase tracking-widest text-ink-soft mb-3">
+            Who can ask questions?
+          </h2>
+          {council.isSupreme ? (
+            <Card className="p-4">
+              <p className="text-sm text-ink-soft">
+                Only you. A Supreme Council is always the people who advise you.
+              </p>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {ASK_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => changeAskPolicy(option.id)}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    council.askPolicy === option.id
+                      ? "border-indigo bg-indigo-soft"
+                      : "border-border bg-surface"
+                  }`}
+                >
+                  <p
+                    className={`text-sm font-medium ${
+                      council.askPolicy === option.id ? "text-indigo" : "text-ink"
+                    }`}
+                  >
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-ink-soft mt-0.5">{option.description}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {isOwner && (
         <div className="mb-8">

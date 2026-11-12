@@ -1,13 +1,15 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RequireAuth } from "@/components/require-auth";
 import { useAuth } from "@/lib/auth";
-import { requestRepository } from "@/lib/repositories";
+import { councilRepository, requestRepository } from "@/lib/repositories";
+import { canAskIn } from "@/lib/council-labels";
 import { CLOSE_RULE_OPTIONS } from "@/lib/close-rules";
 import { Button, Input, Textarea, Label } from "@/components/ui";
-import type { CloseRule } from "@/types";
+import type { CloseRule, Council } from "@/types";
 
 function toLocalDatetimeInputValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -27,6 +29,14 @@ function NewRequestInner() {
     return toLocalDatetimeInputValue(inAWeek);
   });
   const [submitting, setSubmitting] = useState(false);
+  const [council, setCouncil] = useState<Council | null>(null);
+
+  useEffect(() => {
+    if (!councilId) return;
+    (async () => {
+      setCouncil((await councilRepository.get(councilId)) ?? null);
+    })();
+  }, [councilId]);
 
   const selectedOption = CLOSE_RULE_OPTIONS.find((o) => o.id === closeRule);
 
@@ -44,6 +54,23 @@ function NewRequestInner() {
         : undefined,
     });
     router.replace(`/requests/view?id=${req.id}`);
+  }
+
+  if (council && !canAskIn(council, user?.id)) {
+    return (
+      <div className="max-w-md w-full mx-auto px-6 pt-10 flex-1 flex flex-col">
+        <h1 className="font-display font-semibold tracking-tight text-3xl mb-4">
+          Only the owner asks here
+        </h1>
+        <p className="text-ink-soft mb-8">
+          In this council the owner asks the questions and members advise by
+          answering them.
+        </p>
+        <Link href={`/councils/view?id=${council.id}`} className="text-indigo font-medium text-sm">
+          Back to the council
+        </Link>
+      </div>
+    );
   }
 
   return (

@@ -34,7 +34,11 @@ create table if not exists councils (
   created_at timestamptz not null default now(),
   -- Every user's permanent first council. Renamable, never deletable:
   -- no delete privilege is granted on councils at all (see grants below).
-  is_supreme boolean not null default false
+  is_supreme boolean not null default false,
+  -- Who may post questions in this council: only the owner ('owner': the
+  -- members are advisors) or any member ('members'). A Supreme Council is
+  -- always 'owner' (enforced by a constraint below).
+  ask_policy text not null default 'members' check (ask_policy in ('owner', 'members'))
 );
 
 create table if not exists council_members (
@@ -104,6 +108,24 @@ create table if not exists council_invitations (
   unique (council_id, invited_user)
 );
 
+-- Databases created from the previous version: add the column (existing
+-- normal councils keep today's behaviour, 'members'), make every Supreme
+-- Council 'owner', then lock that in with a constraint.
+alter table councils
+  add column if not exists ask_policy text not null default 'members'
+  check (ask_policy in ('owner', 'members'));
+
+update councils set ask_policy = 'owner' where is_supreme and ask_policy <> 'owner';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'supreme_council_owner_asks_only') then
+    alter table councils
+      add constraint supreme_council_owner_asks_only
+      check (not is_supreme or ask_policy = 'owner');
+  end if;
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Helper functions used by the access rules. SECURITY DEFINER so they can
 -- read these tables without going back through the tables' own rules
@@ -144,6 +166,21 @@ as $$
   );
 $$;
 
+-- May the signed-in user post a question in this council? They must be a
+-- member, and either own it or be in a council where any member may ask.
+create or replace function public.can_ask_in(p_council_id uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.councils c
+    join public.council_members m on m.council_id = c.id and m.user_id = auth.uid()
+    where c.id = p_council_id
+      and (c.owner_id = auth.uid() or c.ask_policy = 'members')
+  );
+$$;
+
 -- ---------------------------------------------------------------------
 -- Signup trigger: a profile, plus a permanent "Supreme Council" with just
 -- that person in it.
@@ -159,8 +196,8 @@ begin
     coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1))
   );
 
-  insert into public.councils (name, description, owner_id, is_supreme)
-  values ('Supreme Council', 'Your most trusted people, for anything.', new.id, true)
+  insert into public.councils (name, description, owner_id, is_supreme, ask_policy)
+  values ('Supreme Council', 'Your most trusted people, for anything.', new.id, true, 'owner')
   returning id into new_council_id;
 
   insert into public.council_members (council_id, user_id)
@@ -181,8 +218,15 @@ create trigger on_auth_user_created
 -- allowed to do. Errors are short codes the app turns into messages.
 -- ---------------------------------------------------------------------
 
--- Create a council you own, with you as its first member.
-create or replace function public.create_council(p_name text, p_description text default '')
+-- Create a council you own, with you as its first member. p_ask_policy:
+-- 'owner' = only you ask and members advise (the default), 'members' = any
+-- member may ask.
+drop function if exists public.create_council(text, text);
+create or replace function public.create_council(
+  p_name text,
+  p_description text default '',
+  p_ask_policy text default 'owner'
+)
 returns uuid
 language plpgsql security definer set search_path = public
 as $$
@@ -191,9 +235,10 @@ declare
 begin
   if auth.uid() is null then raise exception 'not_signed_in'; end if;
   if length(trim(coalesce(p_name, ''))) = 0 then raise exception 'name_required'; end if;
+  if p_ask_policy not in ('owner', 'members') then raise exception 'bad_ask_policy'; end if;
 
-  insert into public.councils (name, description, owner_id, is_supreme)
-  values (trim(p_name), coalesce(p_description, ''), auth.uid(), false)
+  insert into public.councils (name, description, owner_id, is_supreme, ask_policy)
+  values (trim(p_name), coalesce(p_description, ''), auth.uid(), false, p_ask_policy)
   returning id into v_id;
 
   insert into public.council_members (council_id, user_id)
@@ -244,9 +289,12 @@ end;
 $$;
 
 -- What would happen if I opened this link? Names are only revealed when the
--- link is usable, so a dead or guessed code reveals nothing.
+-- link is usable, so a dead or guessed code reveals nothing. ask_policy tells
+-- the person whether they would be an advisor ('owner') or a member who can
+-- also ask ('members') in the council the link adds them to.
+drop function if exists public.preview_invite(text);
 create or replace function public.preview_invite(p_code text)
-returns table (status text, inviter_name text, council_name text)
+returns table (status text, inviter_name text, council_name text, ask_policy text)
 language plpgsql security definer set search_path = public
 as $$
 declare
@@ -254,12 +302,13 @@ declare
   v_status text;
   v_inviter text;
   v_council text;
+  v_policy text;
 begin
   if auth.uid() is null then raise exception 'not_signed_in'; end if;
 
   select * into i from public.invites where code = p_code;
   if not found then
-    return query select 'invalid'::text, null::text, null::text;
+    return query select 'invalid'::text, null::text, null::text, null::text;
     return;
   end if;
 
@@ -276,11 +325,12 @@ begin
   if v_status in ('ok', 'already') then
     select p.name into v_inviter from public.profiles p where p.id = i.created_by;
     if i.council_id is not null then
-      select c.name into v_council from public.councils c where c.id = i.council_id;
+      select c.name, c.ask_policy into v_council, v_policy
+      from public.councils c where c.id = i.council_id;
     end if;
   end if;
 
-  return query select v_status, v_inviter, v_council;
+  return query select v_status, v_inviter, v_council, v_policy;
 end;
 $$;
 
@@ -380,6 +430,30 @@ begin
 end;
 $$;
 
+-- The invitations waiting for me, read live from the councils (so the name
+-- and role shown are current) together with who sent them.
+create or replace function public.my_council_invitations()
+returns table (
+  id uuid,
+  council_id uuid,
+  council_name text,
+  ask_policy text,
+  is_supreme boolean,
+  inviter_id uuid,
+  inviter_name text,
+  created_at timestamptz
+)
+language sql stable security definer set search_path = public
+as $$
+  select i.id, i.council_id, c.name, c.ask_policy, c.is_supreme,
+         i.invited_by, p.name, i.created_at
+  from public.council_invitations i
+  join public.councils c on c.id = i.council_id
+  join public.profiles p on p.id = i.invited_by
+  where i.invited_user = auth.uid() and i.status = 'pending'
+  order by i.created_at desc;
+$$;
+
 -- Leave a council you don't own.
 create or replace function public.leave_council(p_council_id uuid)
 returns void
@@ -440,7 +514,7 @@ grant select on profiles to authenticated;
 grant update (name, onboarded_at) on profiles to authenticated;
 
 grant select on councils to authenticated;
-grant update (name, description) on councils to authenticated;
+grant update (name, description, ask_policy) on councils to authenticated;
 
 grant select on council_members to authenticated;
 
@@ -458,7 +532,9 @@ grant select on council_invitations to authenticated;
 revoke all on function public.is_council_member(uuid) from public, anon;
 revoke all on function public.is_linked(uuid) from public, anon;
 revoke all on function public.shares_council_with(uuid) from public, anon;
-revoke all on function public.create_council(text, text) from public, anon;
+revoke all on function public.can_ask_in(uuid) from public, anon;
+revoke all on function public.create_council(text, text, text) from public, anon;
+revoke all on function public.my_council_invitations() from public, anon;
 revoke all on function public.create_invite(uuid, integer, integer) from public, anon;
 revoke all on function public.preview_invite(text) from public, anon;
 revoke all on function public.redeem_invite(text) from public, anon;
@@ -470,7 +546,9 @@ revoke all on function public.remove_from_circle(uuid) from public, anon;
 grant execute on function public.is_council_member(uuid) to authenticated;
 grant execute on function public.is_linked(uuid) to authenticated;
 grant execute on function public.shares_council_with(uuid) to authenticated;
-grant execute on function public.create_council(text, text) to authenticated;
+grant execute on function public.can_ask_in(uuid) to authenticated;
+grant execute on function public.create_council(text, text, text) to authenticated;
+grant execute on function public.my_council_invitations() to authenticated;
 grant execute on function public.create_invite(uuid, integer, integer) to authenticated;
 grant execute on function public.preview_invite(text) to authenticated;
 grant execute on function public.redeem_invite(text) to authenticated;
@@ -558,7 +636,7 @@ create policy "members can read requests in their councils"
 drop policy if exists "members can post requests to their councils" on requests;
 create policy "members can post requests to their councils"
   on requests for insert to authenticated
-  with check (author_id = auth.uid() and public.is_council_member(council_id));
+  with check (author_id = auth.uid() and public.can_ask_in(council_id));
 
 drop policy if exists "author can update their own request" on requests;
 create policy "author can update their own request"
@@ -581,6 +659,8 @@ create policy "members can cast a vote on requests in their councils"
     and exists (
       select 1 from requests r
       where r.id = votes.request_id
+        -- You can't vote on your own question.
+        and r.author_id <> auth.uid()
         -- "manual" and "deadline" close rules are enforced here, not just
         -- in the UI. "all_members" is not: the vote that completes
         -- participation must itself be allowed through.
@@ -598,6 +678,7 @@ create policy "members can change their own vote"
     and exists (
       select 1 from requests r
       where r.id = votes.request_id
+        and r.author_id <> auth.uid()
         and r.closed_at is null
         and (r.deadline is null or r.deadline > now())
     )

@@ -44,14 +44,19 @@ export interface RequestStatus {
 }
 
 export function computeRequestStatus(
-  request: Pick<CouncilRequest, "closeRule" | "deadline" | "closedAt">,
+  request: Pick<CouncilRequest, "closeRule" | "deadline" | "closedAt" | "authorId">,
   memberCount: number,
   votes: Vote[],
   now: Date = new Date()
 ): RequestStatus {
-  const voteCount = votes.length;
-  const allVoted = memberCount > 0 && voteCount >= memberCount;
+  // The person who asked doesn't vote on their own question (the database
+  // refuses it), so they don't count towards "everyone has voted".
+  const eligible = Math.max(memberCount - 1, 0);
+  const voteCount = votes.filter((v) => v.userId !== request.authorId).length;
+  const remaining = Math.max(eligible - voteCount, 0);
+  const allVoted = eligible > 0 && voteCount >= eligible;
   const deadlinePassed = request.deadline ? new Date(request.deadline) <= now : false;
+  const people = remaining === 1 ? "person" : "people";
 
   if (request.closeRule === "manual") {
     return request.closedAt
@@ -66,15 +71,19 @@ export function computeRequestStatus(
   }
 
   if (request.closeRule === "all_members") {
-    return allVoted
-      ? { status: "closed", reason: "Everyone has voted" }
-      : { status: "open", reason: `Waiting on ${memberCount - voteCount} more ${memberCount - voteCount === 1 ? "person" : "people"}` };
+    if (allVoted) return { status: "closed", reason: "Everyone has voted" };
+    if (eligible === 0) {
+      return { status: "open", reason: "Waiting for people to join this council" };
+    }
+    return { status: "open", reason: `Waiting on ${remaining} more ${people}` };
   }
 
+  // deadline_or_all_members
   if (allVoted) return { status: "closed", reason: "Everyone has voted" };
   if (deadlinePassed) return { status: "closed", reason: "Deadline passed" };
+  if (eligible === 0) return { status: "open", reason: "Open until the deadline" };
   return {
     status: "open",
-    reason: `Open until the deadline or until ${memberCount - voteCount} more ${memberCount - voteCount === 1 ? "person" : "people"} vote${memberCount - voteCount === 1 ? "s" : ""}`,
+    reason: `Open until the deadline or until ${remaining} more ${people} vote${remaining === 1 ? "s" : ""}`,
   };
 }

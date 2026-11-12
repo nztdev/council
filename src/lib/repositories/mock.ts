@@ -1,4 +1,5 @@
 import type {
+  AskPolicy,
   Council,
   CouncilInvitation,
   CouncilRequest,
@@ -37,6 +38,7 @@ const councils: Council[] = [
     memberIds: [PREVIEW_USER_ID, "preview-sarah"],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
     isSupreme: true,
+    askPolicy: "owner",
   },
   {
     id: "preview-council-business",
@@ -46,6 +48,19 @@ const councils: Council[] = [
     memberIds: [PREVIEW_USER_ID, "preview-sarah", "preview-alex", "preview-james"],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
     isSupreme: false,
+    askPolicy: "members",
+  },
+  {
+    // Someone else's Supreme Council that you advise - to show how councils
+    // you've joined are told apart from your own.
+    id: "preview-council-mike-supreme",
+    name: "Supreme Council",
+    description: "Your most trusted people, for anything.",
+    ownerId: "preview-mike",
+    memberIds: ["preview-mike", PREVIEW_USER_ID],
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
+    isSupreme: true,
+    askPolicy: "owner",
   },
   {
     id: "preview-council-travel",
@@ -55,6 +70,7 @@ const councils: Council[] = [
     memberIds: ["preview-mike"],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
     isSupreme: false,
+    askPolicy: "owner",
   },
 ];
 
@@ -68,6 +84,8 @@ let invitations: CouncilInvitation[] = [
     councilName: "Travel Council",
     inviterId: "preview-mike",
     inviterName: "Mike",
+    isSupreme: false,
+    askPolicy: "owner",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
   },
 ];
@@ -144,7 +162,7 @@ export const councilRepository: CouncilRepository = {
   async get(id) {
     return councils.find((c) => c.id === id);
   },
-  async create({ name, description }) {
+    async create({ name, description, askPolicy }) {
     const council: Council = {
       id: `preview-council-${Date.now()}`,
       name,
@@ -153,6 +171,7 @@ export const councilRepository: CouncilRepository = {
       memberIds: [PREVIEW_USER_ID],
       createdAt: new Date().toISOString(),
       isSupreme: false,
+      askPolicy,
     };
     councils.push(council);
     return council;
@@ -161,6 +180,14 @@ export const councilRepository: CouncilRepository = {
     const council = councils.find((c) => c.id === councilId);
     if (council) council.name = name;
     return council;
+  },
+  async setAskPolicy(councilId, askPolicy: AskPolicy) {
+    const council = councils.find((c) => c.id === councilId);
+    if (!council) return;
+    if (council.isSupreme) {
+      throw new Error("A Supreme Council is always \"only you can ask\".");
+    }
+    council.askPolicy = askPolicy;
   },
   async inviteMember(councilId, userId) {
     const list = (pendingInvitees[councilId] ??= []);

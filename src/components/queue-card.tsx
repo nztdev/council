@@ -2,6 +2,8 @@
 
 import { motion, useAnimation, type PanInfo } from "framer-motion";
 import { Seal } from "@/components/seal";
+import { useAuth } from "@/lib/auth";
+import { councilLabel } from "@/lib/council-labels";
 import type { RequestWithMeta } from "@/types";
 
 function timeAgo(iso: string) {
@@ -24,6 +26,7 @@ export function QueueCard({
   index: number;
 }) {
   const controls = useAnimation();
+  const { profile } = useAuth();
 
   async function handleDragEnd(
     _: PointerEvent,
@@ -60,7 +63,7 @@ export function QueueCard({
         <div>
           <p className="font-medium leading-tight">{request.author.name}</p>
           <p className="text-xs text-ink-soft font-mono">
-            {request.council.name} · {timeAgo(request.createdAt)}
+          {councilLabel(request.council, request.owner, profile?.id)} · {timeAgo(request.createdAt)}
           </p>
         </div>
       </div>

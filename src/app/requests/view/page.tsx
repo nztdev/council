@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { voteRepository } from "@/lib/repositories";
 import { hydrateRequest, requestRepository } from "@/lib/hydrate";
 import { computeRequestStatus } from "@/lib/close-rules";
+import { councilLabel } from "@/lib/council-labels";
 import { Button, Card, Badge, Textarea } from "@/components/ui";
 import type { RequestWithMeta, Vote, VoteChoice } from "@/types";
 
@@ -81,7 +82,8 @@ function RequestInner() {
   const { status, reason } = computeRequestStatus(request, memberCount, request.votes);
   const isClosed = status === "closed";
   const showResults = isAuthor || hasVoted || isClosed;
-  const canVote = !hasVoted && !isClosed;
+  // The person who asked never votes on their own question.
+  const canVote = !isAuthor && !hasVoted && !isClosed;
 
   const counts = { yes: 0, maybe: 0, no: 0 };
   request.votes.forEach((v) => counts[v.choice]++);
@@ -93,7 +95,9 @@ function RequestInner() {
         <Seal user={request.author} />
         <div>
           <p className="font-medium leading-tight">{request.author.name}</p>
-          <p className="text-xs text-ink-soft font-mono">{request.council.name}</p>
+          <p className="text-xs text-ink-soft font-mono">
+            {councilLabel(request.council, request.owner, user.id)}
+          </p>
         </div>
       </div>
 
@@ -108,6 +112,12 @@ function RequestInner() {
         <Badge tone={isClosed ? "rose" : "indigo"}>{isClosed ? "Closed" : "Open"}</Badge>
         <span className="text-xs text-ink-soft">{reason}</span>
       </div>
+
+      {isAuthor && !isClosed && (
+        <p className="text-xs text-ink-soft mb-6 -mt-4">
+          You asked this question. Answers appear below as members respond.
+        </p>
+      )}
 
       {canVote && (
         <Card className="p-5 mb-8">

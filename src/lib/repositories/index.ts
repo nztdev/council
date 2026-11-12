@@ -36,6 +36,8 @@ export const councilRepository: CouncilRepository = {
   create: (...args) =>
     (isPreviewMode() ? preview : live).councilRepository.create(...args),
   rename: (...args) => (isPreviewMode() ? preview : live).councilRepository.rename(...args),
+  setAskPolicy: (...args) =>
+    (isPreviewMode() ? preview : live).councilRepository.setAskPolicy(...args),
   inviteMember: (...args) =>
     (isPreviewMode() ? preview : live).councilRepository.inviteMember(...args),
   listPendingInvitees: (...args) =>

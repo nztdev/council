@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { hueFromId } from "@/lib/hue";
 import { friendlyError } from "@/lib/errors";
 import type {
+  AskPolicy,
   CloseRule,
   Council,
   CouncilInvitation,
@@ -67,14 +68,6 @@ async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
-/** Display names for the given user ids (only those the caller may see). */
-async function namesFor(ids: string[]): Promise<Map<string, string>> {
-  const unique = Array.from(new Set(ids));
-  if (unique.length === 0) return new Map();
-  const { data } = await supabase.from("profiles").select("id, name").in("id", unique);
-  return new Map((data ?? []).map((p) => [p.id, p.name]));
-}
-
 export const userRepository: UserRepository = {
   async list() {
     const { data, error } = await supabase.from("profiles").select("id, name");
@@ -123,6 +116,7 @@ function mapCouncil(row: {
   owner_id: string;
   created_at: string;
   is_supreme: boolean;
+  ask_policy: string;
 }, memberIds: string[]): Council {
   return {
     id: row.id,
@@ -132,6 +126,7 @@ function mapCouncil(row: {
     memberIds,
     createdAt: row.created_at,
     isSupreme: row.is_supreme,
+    askPolicy: row.ask_policy as AskPolicy,
   };
 }
 
@@ -163,12 +158,13 @@ export const councilRepository: CouncilRepository = {
     if (!data) return undefined;
     return mapCouncil(data, await memberIdsFor(data.id));
   },
-  async create({ name, description }) {
+  async create({ name, description, askPolicy }) {
     // One atomic database function creates the council and adds you as its
     // first member (see create_council in supabase/schema.sql).
     const { data, error } = await supabase.rpc("create_council", {
       p_name: name,
       p_description: description,
+      p_ask_policy: askPolicy,
     });
     if (error || !data) throw new Error(friendlyError(error));
     const created = await councilRepository.get(data as string);
@@ -190,24 +186,29 @@ export const councilRepository: CouncilRepository = {
     if (error) throw new Error(friendlyError(error));
     return (data ?? []).map((r) => r.invited_user);
   },
-  async listMyInvitations() {
-    const me = await currentUserId();
-    if (!me) return [];
-    const { data, error } = await supabase
-      .from("council_invitations")
-      .select("id, council_id, council_name, invited_by, created_at")
-      .eq("invited_user", me)
-      .order("created_at", { ascending: false });
+    async listMyInvitations() {
+    // Read live from the database (see my_council_invitations in schema.sql)
+    // so the council's name and the role you'd have are current.
+    const { data, error } = await supabase.rpc("my_council_invitations");
     if (error) throw new Error(friendlyError(error));
-    const rows = data ?? [];
-    const names = await namesFor(rows.map((r) => r.invited_by));
-    return rows.map(
-      (r): CouncilInvitation => ({
+    return (data ?? []).map(
+      (r: {
+        id: string;
+        council_id: string;
+        council_name: string;
+        ask_policy: string;
+        is_supreme: boolean;
+        inviter_id: string;
+        inviter_name: string;
+        created_at: string;
+      }): CouncilInvitation => ({
         id: r.id,
         councilId: r.council_id,
         councilName: r.council_name,
-        inviterId: r.invited_by,
-        inviterName: names.get(r.invited_by) ?? "Someone",
+        inviterId: r.inviter_id,
+        inviterName: r.inviter_name,
+        isSupreme: r.is_supreme,
+        askPolicy: r.ask_policy as AskPolicy,
         createdAt: r.created_at,
       })
     );
@@ -217,6 +218,13 @@ export const councilRepository: CouncilRepository = {
       p_invitation_id: invitationId,
       p_accept: accept,
     });
+    if (error) throw new Error(friendlyError(error));
+  },
+    async setAskPolicy(councilId, askPolicy) {
+    const { error } = await supabase
+      .from("councils")
+      .update({ ask_policy: askPolicy })
+      .eq("id", councilId);
     if (error) throw new Error(friendlyError(error));
   },
   async leave(councilId) {
@@ -296,7 +304,7 @@ export const requestRepository: RequestRepository = {
       })
       .select()
       .single();
-    if (error || !data) throw new Error(error?.message ?? "Failed to create request");
+    if (error || !data) throw new Error(friendlyError(error));
     return mapRequest(data);
   },
   async close(id) {
@@ -380,13 +388,19 @@ export const circleRepository: CircleRepository = {
     const { data, error } = await supabase.rpc("preview_invite", { p_code: code });
     if (error) throw new Error(friendlyError(error));
     const row = (data ?? [])[0] as
-      | { status: string; inviter_name: string | null; council_name: string | null }
+      | {
+          status: string;
+          inviter_name: string | null;
+          council_name: string | null;
+          ask_policy: string | null;
+        }
       | undefined;
     if (!row) return { status: "invalid" };
     return {
       status: row.status as InviteStatus,
       inviterName: row.inviter_name ?? undefined,
       councilName: row.council_name ?? undefined,
+      askPolicy: (row.ask_policy as AskPolicy | null) ?? undefined,
     } satisfies InvitePreview;
   },
   async redeemInvite(code) {
