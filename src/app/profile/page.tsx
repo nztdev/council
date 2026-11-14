@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { basePath } from "@/lib/base-path";
 import { Card } from "@/components/ui";
 import { PageHero } from "@/components/ui/PageHero";
-import { ListChecks, LogOut } from "lucide-react";
+import { BookOpen, ListChecks, LogOut } from "lucide-react";
 
 function ProfileContent() {
   const { profile, signOut, isPreview } = useAuth();
@@ -43,6 +43,13 @@ function ProfileContent() {
         </div>
 
         <ThemePicker />
+
+        <Card href="/guide" className="p-4 mb-3">
+          <div className="flex items-center gap-3">
+            <BookOpen className="text-indigo" size={20} />
+            <span className="text-sm font-medium">How Council works</span>
+          </div>
+        </Card>
 
         <Card href="/votes" className="p-4 mb-8">
           <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Mail, UserMinus, Users2 } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { Seal } from "@/components/seal";
@@ -120,7 +121,10 @@ function CircleContent() {
         {members && members.length === 0 && (
           <EmptyState icon={<Users2 className="text-ink-soft" size={28} />}>
             Your {CIRCLE} is empty. Create an invite link above and send it to
-            someone whose judgement you trust.
+            someone whose judgement you trust.{" "}
+          <Link href="/guide/" className="text-indigo font-medium">
+            New here? See how Council works.
+          </Link>
           </EmptyState>
         )}
 
